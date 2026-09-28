@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Torneum Dota 2 — Драфт</title>
+  <link rel="icon" href="favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" href="favicon.png?v=2">
+  <link rel="apple-touch-icon" href="favicon.png?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ========== Админ-панель: создание лобби ========== -->
+  <section id="setup" class="setup hidden">
+    <div class="setup-card">
+      <div class="brand">
+        <div class="brand-kicker">Torneum</div>
+        <h1 class="brand-title">Dota 2</h1>
+        <div class="brand-motto">Virtus <i>◆</i> Strategia <i>◆</i> Victoria</div>
+        <div class="divider"><span>Панель админа</span></div>
+      </div>
+      <p class="sub">Captain's Draft × Fearless: на каждой карте новый случайный пул, выбранные ранее герои в серию не попадают.</p>
+
+      <div class="field">
+        <span>Режим драфта</span>
+        <div class="seg" id="mode">
+          <button data-v="links" class="on">Капитаны по ссылкам</button>
+          <button data-v="hotseat">Одно устройство</button>
+        </div>
+        <small class="hint" id="modeHint"></small>
+      </div>
+
+      <div class="teams-row">
+        <label class="field radiant">
+          <span>Команда 1</span>
+          <input id="nameA" maxlength="24" value="Team 1">
+        </label>
+        <label class="field dire">
+          <span>Команда 2</span>
+          <input id="nameB" maxlength="24" value="Team 2">
+        </label>
+      </div>
+
+      <div class="field">
+        <span>Формат серии</span>
+        <div class="seg" id="bestOf">
+          <button data-v="1">Bo1</button>
+          <button data-v="3" class="on">Bo3</button>
+          <button data-v="5">Bo5</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Героев в пуле на карту</span>
+        <input id="poolSize" type="number" min="18" max="127" value="36">
+      </label>
+
+      <div class="grid2">
+        <div class="field">
+          <span>Баны</span>
+          <div class="seg" id="bans">
+            <button data-v="on" class="on">Есть</button>
+            <button data-v="off">Только пики</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Таймер</span>
+          <div class="seg" id="timer">
+            <button data-v="off" class="on">Выкл</button>
+            <button data-v="on" title="30 секунд на ход + 130 секунд резерва">30с + 130с</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="setupWarn" class="warn"></p>
+      <button id="startBtn" class="btn primary big">Создать лобби</button>
+
+      <div class="recent hidden" id="recent">
+        <div class="recent-title">Мои лобби на этом устройстве</div>
+        <div id="recentList"></div>
+      </div>
+      <div class="motto-foot">Sic parvis magna</div>
+    </div>
+  </section>
+
+  <!-- ========== Лобби / драфт ========== -->
+  <main id="draft" class="draft hidden">
+    <header class="topbar">
+      <div class="series">
+        <div class="mini-brand">Torneum <b>Dota 2</b></div>
+        <div>
+          <span id="mapLabel" class="map-label">Карта 1</span>
+          <span id="bestOfLabel" class="muted">Bo3</span>
+        </div>
+      </div>
+      <div class="score">
+        <span id="scoreNameA" class="team-name">A</span>
+        <span id="scoreA" class="num">0</span>
+        <span class="colon">:</span>
+        <span id="scoreB" class="num">0</span>
+        <span id="scoreNameB" class="team-name">B</span>
+      </div>
+      <div class="top-actions">
+        <span class="role-chip" id="roleChip">—</span>
+        <span class="conn" id="conn" title="Соединение с сервером"></span>
+      </div>
+    </header>
+
+    <!-- Панель админа внутри лобби -->
+    <section class="admin-panel hidden" id="adminPanel">
+      <div class="admin-links" id="adminLinks">
+        <div class="admin-row">
+          <span class="admin-label">Адрес сервера в сети</span>
+          <select id="hostSelect"></select>
+        </div>
+        <div class="link-row" data-role="A">
+          <span class="dot" id="presA"></span>
+          <span class="link-name" id="linkNameA">Капитан 1</span>
+          <input readonly id="linkA">
+          <button class="btn ghost small" data-copy="linkA">Копировать</button>
+        </div>
+        <div class="link-row" data-role="B">
+          <span class="dot" id="presB"></span>
+          <span class="link-name" id="linkNameB">Капитан 2</span>
+          <input readonly id="linkB">
+          <button class="btn ghost small" data-copy="linkB">Копировать</button>
+        </div>
+        <div class="link-row">
+          <span class="dot on"></span>
+          <span class="link-name">Зрители / OBS <em id="specCount"></em></span>
+          <input readonly id="linkS">
+          <button class="btn ghost small" data-copy="linkS">Копировать</button>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <button id="undoBtn" class="btn ghost small" title="Отменить последнее действие (Ctrl+Z)">↶ Отмена</button>
+        <button id="pauseBtn" class="btn ghost small">⏸ Пауза</button>
+        <button id="newLobbyBtn" class="btn ghost small">Новое лобби</button>
+      </div>
+    </section>
+
+    <section class="turn-bar" id="turnBar">
+      <div class="turn-text" id="turnText">—</div>
+      <div class="timers" id="timers">
+        <div class="timer-box" id="timerL"><span class="t-main">30</span><span class="t-res">+130</span></div>
+        <div class="timer-box" id="timerR"><span class="t-main">30</span><span class="t-res">+130</span></div>
+      </div>
+      <div class="order" id="order"></div>
+    </section>
+
+    <div class="board">
+      <aside class="team-col" id="colL">
+        <div class="side-tag" id="sideL"></div>
+        <h2 id="nameL">Team</h2>
+        <div class="first-pick" id="fpL">Первый пик</div>
+        <div class="picks" id="picksL"></div>
+        <h3>Баны</h3>
+        <div class="bans" id="bansL"></div>
+      </aside>
+
+      <section class="pool-area">
+        <!-- Монетка и выбор стороны / очереди пика -->
+        <div class="prep hidden" id="prep">
+          <div class="prep-title" id="prepTitle">Подброс монеты</div>
+          <div class="coin-stage" id="coinStage">
+            <div class="coin" id="coin">
+              <div class="coin-face front"><small>◆</small><b id="coinA">A</b></div>
+              <div class="coin-face back"><small>◆</small><b id="coinB">B</b></div>
+            </div>
+            <div class="coin-shadow" id="coinShadow"></div>
+          </div>
+          <div class="prep-text" id="prepText"></div>
+          <div class="choice-log" id="choiceLog"></div>
+          <div class="prep-actions" id="prepActions"></div>
+        </div>
+
+        <div class="pool-head">
+          <div class="pool-info"><b id="poolCount">36</b> героев в пуле <span id="burnedInfo" class="muted"></span></div>
+          <input id="search" class="search" placeholder="Поиск героя…" autocomplete="off">
+        </div>
+        <div class="burned hidden" id="burned"></div>
+        <div class="pool" id="pool"></div>
+
+        <div class="preview hidden" id="preview">
+          <img id="previewImg" alt="">
+          <div class="preview-body">
+            <div id="previewName" class="preview-name">Выберите героя</div>
+            <div id="previewHint" class="muted"></div>
+          </div>
+          <button id="confirmBtn" class="btn primary" disabled>Подтвердить</button>
+        </div>
+
+        <div class="result hidden" id="resultBox">
+          <div class="result-title" id="resultTitle">Драфт завершён</div>
+          <div class="result-btns" id="resultBtns">
+            <button class="btn" id="winA">A</button>
+            <button class="btn" id="winB">B</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="team-col" id="colR">
+        <div class="side-tag" id="sideR"></div>
+        <h2 id="nameR">Team</h2>
+        <div class="first-pick" id="fpR">Первый пик</div>
+        <div class="picks" id="picksR"></div>
+        <h3>Баны</h3>
+        <div class="bans" id="bansR"></div>
+      </aside>
+    </div>
+
+    <section class="history" id="history"></section>
+    <footer class="motto-foot">Sic parvis magna</footer>
+  </main>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="heroes.js"></script>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

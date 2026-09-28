@@ -1,0 +1,15 @@
+{
+  "name": "torneum-dota-draft",
+  "version": "1.0.0",
+  "description": "Captain's Draft × Fearless для Dota 2: админ-панель, ссылки для капитанов, подброс монеты, работа в локальной сети",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:docs": "node scripts/build-docs.js",
+    "update:heroes": "node scripts/update-heroes.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
