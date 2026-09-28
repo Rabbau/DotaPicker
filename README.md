@@ -7,7 +7,7 @@
 
 *Virtus ◆ Strategia ◆ Victoria*
 
-[Демо на GitHub Pages](#демо-на-github-pages) ·
+[Демо на GitHub Pages](https://rabbau.github.io/DotaPicker/) ·
 [Быстрый старт](#быстрый-старт) ·
 [Инструкция для турнира](#запуск-в-локальной-сети--пошаговая-инструкция) ·
 [Правила драфта](#правила-драфта) ·
