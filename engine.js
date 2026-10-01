@@ -109,13 +109,14 @@
     const index = st.maps.length;
     const rest = st.heroIds.filter((id) => !st.burned.includes(id));
     const coin = isCoinMap(index, st.settings.bestOf);
-    const prev = st.maps[index - 1];
+    // На картах без монетки первым выбирает проигравший последний бросок монетки
+    const lastCoin = st.maps.slice().reverse().find((mm) => mm.coin);
     st.maps.push({
       pool: shuffle(rest, rnd).slice(0, st.settings.poolSize),
       coinMap: coin,
       phase: coin ? 'coin' : 'choice1',   // coin → choice1 → choice2 → draft → done [→ evaluated] → result
       coin: null,                          // { winner, at }
-      chooser: coin ? null : other(prev.winner), // первым выбирает проигравший прошлую карту
+      chooser: coin ? null : other(lastCoin.coin.winner),
       choices: [],                         // [{ team, value }]
       sides: null,                         // { A: 'radiant'|'dire', B: ... }
       first: null,                         // команда с первым пиком
