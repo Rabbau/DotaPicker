@@ -74,6 +74,21 @@
         </div>
       </div>
 
+      <div class="grid2">
+        <div class="field">
+          <span>Пик-трейнинг</span>
+          <div class="seg" id="trainer">
+            <button data-v="off" class="on">Выкл</button>
+            <button data-v="on" title="После драфта модель оценит шансы команд и сама засчитает победу">Вкл</button>
+          </div>
+        </div>
+        <label class="field" id="bracketField">
+          <span>Оценивать по рангу</span>
+          <select id="bracket"></select>
+        </label>
+      </div>
+      <small class="hint" id="trainerHint"></small>
+
       <p id="setupWarn" class="warn"></p>
       <button id="startBtn" class="btn primary big">Создать лобби</button>
 
@@ -176,6 +191,9 @@
           <div class="prep-actions" id="prepActions"></div>
         </div>
 
+        <!-- Пик-трейнинг: расстановка героев по позициям 1–5 -->
+        <div class="positions hidden" id="posBox"></div>
+
         <div class="pool-head">
           <div class="pool-info"><b id="poolCount">36</b> героев в пуле <span id="burnedInfo" class="muted"></span></div>
           <input id="search" class="search" placeholder="Поиск героя…" autocomplete="off">
@@ -191,6 +209,9 @@
           </div>
           <button id="confirmBtn" class="btn primary" disabled>Подтвердить</button>
         </div>
+
+        <!-- Пик-трейнинг: оценка драфта -->
+        <div class="eval hidden" id="evalBox"></div>
 
         <div class="result hidden" id="resultBox">
           <div class="result-title" id="resultTitle">Драфт завершён</div>
@@ -218,6 +239,8 @@
   <div class="toast hidden" id="toast"></div>
 
   <script src="heroes.js"></script>
+  <script src="draft-model.js"></script>
+  <script src="evaluator.js"></script>
   <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>

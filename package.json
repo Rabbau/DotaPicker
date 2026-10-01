@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "build:docs": "node scripts/build-docs.js",
-    "update:heroes": "node scripts/update-heroes.js"
+    "update:heroes": "node scripts/update-heroes.js",
+    "build:model": "node scripts/build-model.js"
   },
   "engines": {
     "node": ">=18"

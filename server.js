@@ -13,6 +13,12 @@ const os = require('os');
 const crypto = require('crypto');
 const Engine = require('./engine.js');
 const HEROES = require('./heroes.js');
+const Evaluator = require('./evaluator.js');
+
+// Модель для режима «Пик-трейнинг» (создаётся командой npm run build:model). Без неё режим недоступен.
+let MODEL = null;
+try { MODEL = require('./draft-model.js'); } catch (e) { /* модель не собрана */ }
+if (MODEL) Engine.setEvaluator((bracket, rad, dire) => Evaluator.evaluate(MODEL, bracket, rad, dire));
 
 const PORT = +process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -20,7 +26,7 @@ const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'lobbies.json');
 const STATIC = {
   '/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js', '/engine.js': 'engine.js',
-  '/heroes.js': 'heroes.js', '/style.css': 'style.css', '/favicon.ico': 'favicon.ico', '/favicon.png': 'favicon.png',
+  '/heroes.js': 'heroes.js', '/evaluator.js': 'evaluator.js', '/draft-model.js': 'draft-model.js', '/style.css': 'style.css', '/favicon.ico': 'favicon.ico', '/favicon.png': 'favicon.png',
 };
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.ico': 'image/x-icon', '.png': 'image/png' };
 
@@ -63,11 +69,24 @@ function presence(lobby) {
   return p;
 }
 
+// Пока команды расставляют позиции, чужая расстановка скрыта (видно только, что она отправлена).
+// Админ видит обе — он ведёт турнир.
+function stateFor(state, role) {
+  const m = state.maps[state.maps.length - 1];
+  if (role === 'admin' || !m || m.phase !== 'positions' || !m.positions) return state;
+  const hide = ['A', 'B'].filter((t) => t !== role && m.positions[t]);
+  if (!hide.length) return state;
+  const copy = JSON.parse(JSON.stringify(state));
+  const cm = copy.maps[copy.maps.length - 1];
+  for (const t of hide) cm.positions[t] = { hidden: true };
+  return copy;
+}
+
 function payload(lobby, role) {
   return JSON.stringify({
     id: lobby.id,
     role,
-    state: lobby.state,
+    state: stateFor(lobby.state, role),
     presence: presence(lobby),
     keys: role === 'admin' ? lobby.keys : undefined,
     serverNow: Date.now(),
@@ -117,17 +136,24 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && STATIC[p]) {
       const file = path.join(ROOT, STATIC[p]);
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      if (!fs.existsSync(file)) {
+        // Например, draft-model.js ещё не собран — отдаём пустой скрипт, чтобы страница работала
+        res.writeHead(p.endsWith('.js') ? 200 : 404, { 'Content-Type': MIME['.js'] });
+        res.end(p.endsWith('.js') ? '/* файл не найден */' : '');
+        return;
+      }
       fs.createReadStream(file).pipe(res);
       return;
     }
 
     if (req.method === 'GET' && p === '/api/info') {
-      return sendJson(res, 200, { port: PORT, addresses: lanAddresses() });
+      return sendJson(res, 200, { port: PORT, addresses: lanAddresses(), trainer: Evaluator.brackets(MODEL) });
     }
 
     // Создание лобби
     if (req.method === 'POST' && p === '/api/lobbies') {
       const settings = await readBody(req);
+      if (!MODEL) settings.trainer = false;
       const id = token(4);
       const lobby = {
         id,

@@ -14,6 +14,10 @@ const RECENT_KEY = 'torneum-recent-v1';
 const LOCAL_KEY = 'torneum-local-v1';
 const HOST_KEY = 'torneum-host-v1';
 
+// Модель пик-трейнинга (draft-model.js) — нужна в браузере для режима без сервера
+const MODEL = typeof DRAFT_MODEL !== 'undefined' ? DRAFT_MODEL : null;
+if (MODEL) E.setEvaluator((bracket, rad, dire) => DraftEvaluator.evaluate(MODEL, bracket, rad, dire));
+
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 
@@ -23,6 +27,7 @@ let transport = null;
 let serverInfo = null;  // { port, addresses } — если страница открыта через сервер
 let selected = null;
 let lastStepKey = '';
+let posDraft = { A: null, B: null }; // расстановка позиций, которую капитан ещё редактирует
 let animatedCoin = null;
 
 const now = () => Date.now() + offset;
@@ -136,7 +141,7 @@ function onView(d) {
   view = d;
   const m = map();
   const key = `${view.state.maps.length}:${m.phase}:${m.actions.length}`;
-  if (key !== lastStepKey) { selected = null; lastStepKey = key; }
+  if (key !== lastStepKey) { selected = null; lastStepKey = key; posDraft = { A: null, B: null }; }
   showScreen('draft');
   render();
 }
@@ -166,7 +171,7 @@ function render() {
 
   // Шапка
   $('mapLabel').textContent = `Карта ${S.maps.length}`;
-  $('bestOfLabel').textContent = `Bo${s.bestOf}`;
+  $('bestOfLabel').textContent = `Bo${s.bestOf}${s.trainer ? ' · пик-трейнинг' : ''}`;
   for (const t of ['A', 'B']) {
     $('scoreName' + t).textContent = teamName(t);
     $('scoreName' + t).className = 'team-name ' + sideCls(t);
@@ -192,6 +197,10 @@ function render() {
   else if (flying) turn = 'Монета в воздухе…';
   else if (m.phase === 'choice1' || m.phase === 'choice2') turn = `<b>${esc(teamName(acting))}</b> — выбор`;
   else if (step) turn = `<b>${esc(teamName(step.team))}</b> — ${step.type === 'pick' ? 'ПИК' : 'БАН'}`;
+  else if (m.phase === 'positions') {
+    turn = 'Расстановка позиций';
+    if (!s.hotseat && ['A', 'B'].some((t) => canAct(t) && !m.positions[t])) turn += ' <span class="your-turn">ваш ход</span>';
+  } else if (m.eval) turn = `Оценка драфта: <b class="side-r">${(m.eval.pRadiant * 100).toFixed(1)}%</b> : <b class="side-d">${(100 - m.eval.pRadiant * 100).toFixed(1)}%</b>`;
   else turn = 'Драфт завершён';
   if (acting && canAct(acting) && !flying && !S.over && !s.hotseat) turn += ' <span class="your-turn">ваш ход</span>';
   $('turnText').innerHTML = turn;
@@ -222,8 +231,10 @@ function render() {
   }
 
   renderPrep();
+  renderPositions();
   renderPool();
   renderPreview();
+  renderEval();
   renderResult();
   renderHistory();
   renderTimers();
@@ -244,13 +255,108 @@ function renderSlots(t, picks, bans) {
     const hid = m.actions[i];
     const isCur = i === m.actions.length && m.phase === 'draft';
     const target = stp.type === 'pick' ? picks : bans;
-    if (hid != null) target.appendChild(heroTile(HERO_BY_ID.get(hid), `slot ${stp.type} filled`));
-    else {
+    if (hid != null) {
+      const tile = heroTile(HERO_BY_ID.get(hid), `slot ${stp.type} filled`);
+      const p = stp.type === 'pick' ? knownPosition(m, t, hid) : null;
+      if (p) tile.appendChild(el('span', 'pos-badge', String(p)));
+      target.appendChild(tile);
+    } else {
       const slot = el('div', `slot ${stp.type} empty${isCur ? ' current' : ''}`);
       if (isCur && selected != null) slot.appendChild(heroTile(HERO_BY_ID.get(selected), 'ghost-tile'));
       target.appendChild(slot);
     }
   });
+}
+
+/* ---------- Пик-трейнинг: расстановка позиций ---------- */
+
+const POS_NAMES = ['Керри', 'Мид', 'Оффлейн', 'Саппорт 4', 'Саппорт 5'];
+const picksOf = (m, t) => m.actions.filter((_, i) => m.seq[i] && m.seq[i].type === 'pick' && m.seq[i].team === t);
+
+// Позиция героя, если она уже известна этому зрителю (своя расстановка, открытая чужая или из оценки)
+function knownPosition(m, t, heroId) {
+  const own = m.positions && m.positions[t];
+  if (own && !own.hidden && own[heroId]) return own[heroId];
+  const h = m.eval && m.eval.heroes.find((x) => x.id === heroId);
+  return h && h.pos ? h.pos : null;
+}
+
+function positionDraft(m, t) {
+  if (!posDraft[t]) {
+    const sent = m.positions[t];
+    posDraft[t] = sent && !sent.hidden
+      ? { ...sent }
+      : (MODEL ? DraftEvaluator.defaultPositions(MODEL, st().settings.bracket, picksOf(m, t))
+        : Object.fromEntries(picksOf(m, t).map((id, k) => [id, k + 1])));
+  }
+  return posDraft[t];
+}
+
+function setDraftPosition(t, heroId, p) {
+  const d = posDraft[t];
+  const holder = Object.keys(d).find((id) => d[id] === p);
+  if (holder && +holder !== heroId) d[holder] = d[heroId]; // герой, стоявший на этой позиции, меняется местами
+  d[heroId] = p;
+  render();
+}
+
+function renderPositions() {
+  const box = $('posBox');
+  const S = st();
+  const m = map();
+  const show = m.phase === 'positions' && !S.over;
+  box.classList.toggle('hidden', !show);
+  if (!show) return;
+  const radT = m.sides.A === 'radiant' ? 'A' : 'B';
+  box.innerHTML = `<div class="prep-title">Расстановка позиций</div>
+    <div class="prep-text">Распределите своих героев по позициям 1–5 — модель учтёт, насколько герой силён именно на этой позиции.
+      Расстановка соперника откроется, когда обе команды подтвердят свою.</div>
+    <div class="pos-teams"></div>`;
+  const wrap = box.querySelector('.pos-teams');
+
+  for (const t of [radT, E.other(radT)]) {
+    const sent = m.positions[t];
+    const card = el('div', `pos-card ${sideCls(t)}`);
+    card.appendChild(el('div', 'pos-head', `<b>${esc(teamName(t))}</b><span>${sideOf(t) === 'radiant' ? 'Radiant' : 'Dire'}</span>
+      <em class="${sent ? 'ok' : ''}">${sent ? '✓ подтверждено' : 'расставляет…'}</em>`));
+
+    if (canAct(t)) {
+      const d = positionDraft(m, t);
+      for (const id of picksOf(m, t)) {
+        const h = HERO_BY_ID.get(id);
+        const shares = MODEL ? DraftEvaluator.positionShares(MODEL, S.settings.bracket, id) : null;
+        const usual = shares ? shares.indexOf(Math.max(...shares)) + 1 : null;
+        const cur = d[id];
+        const curShare = shares ? shares[cur - 1] : null;
+        const row = el('div', 'pos-row');
+        row.innerHTML = `<img src="${heroImg(h)}" alt=""><div class="pos-hero"><b>${esc(h.name)}</b>
+          <small class="${curShare != null && curShare < 0.1 ? 'warn' : ''}">${shares ? `на поз. ${cur} — ${Math.round(curShare * 100)}% его игр · обычно поз. ${usual}` : ''}</small></div>`;
+        const chips = el('div', 'pos-chips');
+        for (let p = 1; p <= 5; p++) {
+          const b = el('button', `pos-chip${cur === p ? ' on' : ''}`, String(p));
+          b.title = `${POS_NAMES[p - 1]}${shares ? ` — ${Math.round(shares[p - 1] * 100)}% игр героя` : ''}`;
+          b.addEventListener('click', () => setDraftPosition(t, id, p));
+          chips.appendChild(b);
+        }
+        row.appendChild(chips);
+        card.appendChild(row);
+      }
+      const done = !!sent;
+      const btn = el('button', 'btn primary', done ? 'Обновить расстановку' : 'Подтвердить расстановку');
+      btn.disabled = !!(sent && m.positions[E.other(t)]);
+      btn.addEventListener('click', () => act({ type: 'positions', team: t, positions: posDraft[t] }));
+      card.appendChild(btn);
+    } else if (sent && !sent.hidden) {
+      // Админ видит отправленную расстановку
+      for (const id of picksOf(m, t)) {
+        const h = HERO_BY_ID.get(id);
+        card.appendChild(el('div', 'pos-row ro', `<img src="${heroImg(h)}" alt=""><div class="pos-hero"><b>${esc(h.name)}</b></div><span class="pos-chip on">${sent[id]}</span>`));
+      }
+    } else {
+      card.appendChild(el('div', 'muted pos-wait', sent ? 'Расстановка подтверждена и скрыта до подтверждения обеих команд.' : 'Команда расставляет героев по позициям…'));
+    }
+    wrap.appendChild(card);
+  }
 }
 
 /* Монетка и выбор стороны / очереди пика */
@@ -471,19 +577,128 @@ function renderResult() {
     }
     return;
   }
+  // Пик-трейнинг: победа засчитана автоматически, ждём следующую карту
+  if (m.phase === 'evaluated') {
+    box.classList.remove('hidden');
+    $('resultTitle').textContent = `🏆 Победа на карте засчитана: ${teamName(m.winner)}`;
+    if (view.role === 'admin') {
+      const n = el('button', 'btn primary', 'Следующая карта →');
+      n.addEventListener('click', () => act({ type: 'next' }));
+      btns.appendChild(n);
+    } else btns.appendChild(el('div', 'muted', 'Следующую карту запустит админ.'));
+    return;
+  }
   const done = m.phase === 'done';
   box.classList.toggle('hidden', !done);
   if (!done) return;
   if (view.role === 'admin') {
-    $('resultTitle').textContent = 'Драфт завершён. Кто выиграл карту?';
+    $('resultTitle').textContent = m.eval ? 'Шансы равны 50 на 50 — выберите победителя карты' : 'Драфт завершён. Кто выиграл карту?';
     for (const t of ['A', 'B']) {
       const b = el('button', `btn ${sideOf(t) === 'dire' ? 'dire-btn' : 'radiant-btn'}`, `🏆 ${esc(teamName(t))}`);
       b.addEventListener('click', () => act({ type: 'winner', team: t }));
       btns.appendChild(b);
     }
   } else {
-    $('resultTitle').textContent = 'Драфт завершён. GL HF! Результат карты отметит админ.';
+    $('resultTitle').textContent = m.eval
+      ? 'Шансы равны 50 на 50 — победителя выберет админ.'
+      : 'Драфт завершён. GL HF! Результат карты отметит админ.';
   }
+}
+
+/* Пик-трейнинг: шансы команд и разбор драфта */
+function renderEval() {
+  const box = $('evalBox');
+  const m = map();
+  const ev = m.eval;
+  box.classList.toggle('hidden', !ev);
+  if (!ev) return;
+  const radT = m.sides.A === 'radiant' ? 'A' : 'B';
+  const dirT = E.other(radT);
+  const pR = ev.pRadiant * 100;
+  const pD = 100 - pR;
+  const fmt = (v) => `${v.toFixed(1)}%`;
+  const signed = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`;
+  const heroImgTag = (id) => { const h = HERO_BY_ID.get(id); return h ? `<img src="${heroImg(h)}" alt="${esc(h.name)}" title="${esc(h.name)}">` : ''; };
+  const heroName = (id) => esc((HERO_BY_ID.get(id) || { name: '?' }).name);
+  // Строка «в пользу кого»: + — Radiant, − — Dire
+  const favor = (v) => (Math.abs(v) < 0.05 ? '<span class="muted">поровну</span>'
+    : `<b class="${v > 0 ? 'side-r' : 'side-d'}">${signed(Math.abs(v))} ${esc(teamName(v > 0 ? radT : dirT))}</b>`);
+  // Полоска от центра: перевес Radiant тянется влево (Radiant на экране слева), Dire — вправо
+  const bar = (v, max) => {
+    const w = Math.min(50, (Math.abs(v) / max) * 50);
+    return `<div class="fbar"><span class="${v >= 0 ? 'r' : 'd'}" style="${v >= 0 ? `left:${50 - w}%` : 'left:50%'};width:${w}%"></span></div>`;
+  };
+
+  const parts = [
+    ['Сила героев в патче', ev.parts.heroes],
+    ...(ev.parts.positions != null ? [['Позиции героев', ev.parts.positions]] : []),
+    ['Синергия союзников', ev.parts.synergy],
+    ['Контрпики', ev.parts.counters],
+    ['Состав (роли)', ev.parts.composition],
+  ];
+  const maxPart = Math.max(1, ...parts.map(([, v]) => Math.abs(v)));
+
+  const syn = ev.synergies.filter((x) => Math.abs(x.pp) >= 0.05).slice(0, 4);
+  const ctr = ev.counters.filter((x) => Math.abs(x.pp) >= 0.05).slice(0, 4);
+  const heroesBy = (side) => ev.heroes.filter((h) => h.side === side).sort((a, b) => Math.abs(b.pp) - Math.abs(a.pp));
+  const roles = ev.composition.filter((c) => c.key !== 'Melee');
+  const offRole = ev.heroes.filter((h) => h.pos && h.posShare != null && h.posShare < 0.1);
+
+  const decided = m.winner && m.autoWin;
+  box.innerHTML = `
+    <div class="eval-head">
+      <div class="eval-title">Оценка драфта</div>
+      <div class="eval-sub">Модель STRATZ · ${esc(ev.bracket.label)} · угадывает исход матча по драфту в ${Math.round(ev.bracket.accuracy * 100)}% случаев</div>
+    </div>
+    <div class="odds">
+      <div class="odds-team side-r ${pR > pD ? 'lead' : ''}"><small>Radiant</small><b>${esc(teamName(radT))}</b><em>${fmt(pR)}</em></div>
+      <div class="odds-bar"><span class="r" style="width:${pR}%"></span><span class="d" style="width:${pD}%"></span><i></i></div>
+      <div class="odds-team side-d ${pD > pR ? 'lead' : ''}"><small>Dire</small><b>${esc(teamName(dirT))}</b><em>${fmt(pD)}</em></div>
+    </div>
+    ${decided ? `<div class="verdict">🏆 Победа засчитана: <b class="${m.winner === radT ? 'side-r' : 'side-d'}">${esc(teamName(m.winner))}</b></div>` : ''}
+    <div class="eval-grid">
+      <div class="eval-card">
+        <h4>Из чего сложились шансы</h4>
+        ${parts.map(([label, v]) => `<div class="factor"><span>${label}</span>${bar(v, maxPart)}<span class="fv">${favor(v)}</span></div>`).join('')}
+        ${ev.sideBonus != null ? `<div class="side-note">Оцениваем только драфт. Сторона в шанс не входит, хотя по статистике Radiant
+          на этом ранге побеждает чаще на ${ev.sideBonus.toFixed(1)}%.</div>` : ''}
+      </div>
+      <div class="eval-card">
+        <h4>Связки союзников</h4>
+        ${syn.length ? syn.map((x) => {
+          // Связка оценивается для своей команды: плюс — пара усиливает друг друга, минус — мешает
+          const t = x.side === 'radiant' ? radT : dirT;
+          const own = x.side === 'radiant' ? x.pp : -x.pp;
+          return `<div class="pair"><div class="pair-imgs">${heroImgTag(x.a)}<span>+</span>${heroImgTag(x.b)}</div><div class="pair-text">${heroName(x.a)} + ${heroName(x.b)}<small class="${x.side === 'radiant' ? 'side-r' : 'side-d'}">${esc(teamName(t))}</small></div><div class="pv"><b class="${own >= 0 ? 'pos' : 'neg'}">${signed(own)}</b></div></div>`;
+        }).join('') : '<div class="muted">Заметных связок нет</div>'}
+        <h4>Контрпики</h4>
+        ${ctr.length ? ctr.map((x) => {
+          const winHero = x.pp > 0 ? x.radiant : x.dire;
+          const loseHero = x.pp > 0 ? x.dire : x.radiant;
+          return `<div class="pair"><div class="pair-imgs">${heroImgTag(winHero)}<span>›</span>${heroImgTag(loseHero)}</div><div class="pair-text">${heroName(winHero)} <span class="muted">против</span> ${heroName(loseHero)}</div><div class="pv">${favor(x.pp)}</div></div>`;
+        }).join('') : '<div class="muted">Заметных контрпиков нет</div>'}
+      </div>
+      <div class="eval-card">
+        <h4>Вклад героев</h4>
+        <div class="hero-impact">
+          ${[['radiant', radT], ['dire', dirT]].map(([side, t]) => `<div class="hi-col"><div class="hi-name ${side === 'radiant' ? 'side-r' : 'side-d'}">${esc(teamName(t))}</div>
+            ${heroesBy(side).map((h) => {
+              const own = side === 'radiant' ? h.pp : -h.pp; // вклад в пользу своей команды
+              const posTag = h.pos ? `<i class="hi-pos${h.posShare != null && h.posShare < 0.1 ? ' warn' : ''}" title="${POS_NAMES[h.pos - 1]}${h.posShare != null ? ` — ${Math.round(h.posShare * 100)}% игр героя` : ''}">${h.pos}</i>` : '';
+              return `<div class="hi-row">${heroImgTag(h.id)}<span>${posTag}${heroName(h.id)}</span><b class="${own >= 0 ? 'pos' : 'neg'}">${signed(own)}</b></div>`;
+            }).join('')}</div>`).join('')}
+        </div>
+        ${offRole.length ? `<h4>Непривычные позиции</h4>${offRole.map((h) => {
+          const own = h.side === 'radiant' ? h.posPP : -h.posPP;
+          return `<div class="off-row">${heroImgTag(h.id)}<span>${heroName(h.id)} на поз. ${h.pos} — так его играют лишь в ${Math.max(1, Math.round(h.posShare * 100))}% игр</span><b class="${own >= 0 ? 'pos' : 'neg'}">${signed(own)}</b></div>`;
+        }).join('')}` : ''}
+        <h4>Роли в составе</h4>
+        <div class="roles">
+          ${roles.map((c) => `<div class="role-row"><span>${esc(c.label)}</span><b class="side-r">${c.radiant}</b><i>:</i><b class="side-d">${c.dire}</b></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="eval-note">Вклад указан в процентах шанса на победу. Драфт — лишь часть игры: даже лучшая модель по пикам угадывает победителя примерно в 55–60% матчей.</div>`;
 }
 
 function renderHistory() {
@@ -495,7 +710,8 @@ function renderHistory() {
   box.appendChild(el('h3', null, 'История серии'));
   done.forEach((m, idx) => {
     const row = el('div', 'hist-row');
-    row.appendChild(el('div', 'hist-map', `Карта ${idx + 1}<br><small>🏆 ${esc(teamName(m.winner))}</small>`));
+    const odds = m.eval ? ` · ${Math.round(Math.max(m.eval.pRadiant, 1 - m.eval.pRadiant) * 1000) / 10}%` : '';
+    row.appendChild(el('div', 'hist-map', `Карта ${idx + 1}<br><small>🏆 ${esc(teamName(m.winner))}${odds}</small>`));
     const order = m.sides.A === 'radiant' ? ['A', 'B'] : ['B', 'A'];
     for (const t of order) {
       const side = m.sides[t];
@@ -617,7 +833,24 @@ function readSettings() {
     bans: segValue('bans') === 'on',
     timer: segValue('timer') === 'on',
     hotseat: segValue('mode') === 'hotseat',
+    trainer: segValue('trainer') === 'on',
+    bracket: $('bracket').value || 'all',
   };
+}
+
+// Ранги, по которым есть модель: на сервере — из /api/info, без сервера — из draft-model.js в браузере
+function trainerBrackets() {
+  if (serverInfo) return serverInfo.trainer || [];
+  return MODEL ? DraftEvaluator.brackets(MODEL) : [];
+}
+
+let bracketsFilled = false;
+function fillBrackets() {
+  const list = trainerBrackets();
+  if (bracketsFilled || !list.length) return;
+  bracketsFilled = true;
+  $('bracket').innerHTML = list.map((b) => `<option value="${b.key}">${esc(b.label)} — точность ${Math.round(b.accuracy * 100)}%</option>`).join('');
+  $('bracket').value = list.some((b) => b.key === 'divine_immortal') ? 'divine_immortal' : list[0].key;
 }
 
 function validateSetup() {
@@ -639,6 +872,19 @@ function validateSetup() {
     : segValue('mode') === 'links'
       ? 'Каждый капитан пикает со своего устройства по своей ссылке. Админ отмечает победителя карты.'
       : 'Обе команды пикают на этом устройстве. Ссылку для зрителей / OBS всё равно можно раздать.';
+
+  // Пик-трейнинг доступен, только если собрана модель (npm run build:model)
+  fillBrackets();
+  const hasModel = trainerBrackets().length > 0;
+  $('trainer').querySelector('[data-v="on"]').disabled = !hasModel;
+  if (!hasModel && segValue('trainer') === 'on') setSeg('trainer', 'off');
+  const trainerOn = segValue('trainer') === 'on';
+  $('bracketField').classList.toggle('hidden', !trainerOn);
+  $('trainerHint').textContent = !hasModel
+    ? 'Пик-трейнинг недоступен: модель оценки драфта не собрана (npm run build:model).'
+    : trainerOn
+      ? 'После драфта модель оценит шансы команд, покажет разбор и сама засчитает победу стороне с бо́льшим шансом.'
+      : 'Обычный режим: победителя каждой карты отмечает админ.';
   return !warn;
 }
 

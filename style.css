@@ -588,3 +588,145 @@ h1, h2, h3, .map-label, .turn-text, .score, .btn { font-family: Cinzel, Georgia,
   .prep-title { font-size: 21px; }
   .role-chip { max-width: 70vw; }
 }
+
+/* ================= Пик-трейнинг: оценка драфта ================= */
+.field select {
+  background: rgba(10, 5, 20, .7); border: 1px solid var(--line); color: var(--text);
+  padding: 10px 12px; border-radius: 6px; font: inherit; font-size: 14px;
+}
+.field select:focus { outline: none; border-color: var(--accent); }
+#trainerHint { display: block; margin: -6px 0 12px; }
+
+.eval {
+  position: relative; margin-top: 14px; padding: 18px; border: 1px solid var(--line-glow); border-radius: 4px;
+  background: radial-gradient(600px 200px at 50% 0%, rgba(140, 70, 255, .22), transparent 70%), var(--panel);
+  box-shadow: 0 0 50px rgba(120, 50, 230, .28), inset 0 0 40px rgba(110, 40, 220, .1);
+}
+.eval::before, .eval::after { content: "\25C6"; position: absolute; top: -8px; color: var(--accent); font-size: 12px; text-shadow: 0 0 10px var(--accent); }
+.eval::before { left: -5px; }
+.eval::after { right: -5px; }
+.eval-head { text-align: center; }
+.eval-title { font: 700 26px Cinzel, Georgia, serif; letter-spacing: 1.5px; text-shadow: 0 0 16px rgba(170, 100, 255, .5); }
+.eval-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.odds { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr); gap: 14px; align-items: center; margin: 18px 0 8px; }
+.odds-team { display: flex; flex-direction: column; min-width: 0; opacity: .75; }
+.odds-team.lead { opacity: 1; }
+.odds-team.side-d { text-align: right; }
+.odds-team small { font: 700 11px Inter, sans-serif; letter-spacing: 2px; text-transform: uppercase; color: var(--side); }
+.odds-team b { font: 700 18px Cinzel, Georgia, serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.odds-team em { font: 800 34px/1.1 Cinzel, Georgia, serif; font-style: normal; color: var(--side); text-shadow: 0 0 18px color-mix(in srgb, var(--side) 50%, transparent); }
+.odds-bar { position: relative; display: flex; height: 18px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); background: rgba(10, 5, 20, .8); }
+.odds-bar span { height: 100%; animation: grow 1.2s cubic-bezier(.2, .8, .3, 1) both; }
+.odds-bar .r { background: linear-gradient(90deg, #2c8a4c, var(--radiant)); box-shadow: 0 0 16px rgba(98, 217, 138, .5); transform-origin: left; }
+.odds-bar .d { background: linear-gradient(90deg, var(--dire), #9a2633); box-shadow: 0 0 16px rgba(234, 79, 95, .5); transform-origin: right; }
+.odds-bar i { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: rgba(255, 255, 255, .7); }
+@keyframes grow { from { transform: scaleX(0); } }
+.verdict { text-align: center; font: 700 18px Cinzel, Georgia, serif; margin: 6px 0 4px; }
+
+.eval-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+.eval-card { border: 1px solid var(--line); border-radius: 3px; padding: 12px; background: rgba(10, 5, 20, .55); min-width: 0; }
+.eval-card h4 { margin: 0 0 8px; font: 700 12px Inter, sans-serif; letter-spacing: 1.5px; text-transform: uppercase; color: #d9c7ff; }
+.eval-card h4:not(:first-child) { margin-top: 14px; }
+
+.factor { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 2px 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.factor .fbar { grid-column: 1 / -1; order: 3; }
+.factor .fv { text-align: right; font-size: 12px; white-space: nowrap; }
+.fbar { position: relative; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .06); }
+.fbar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(255, 255, 255, .35); }
+.fbar span { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.fbar .r { background: var(--radiant); }
+.fbar .d { background: var(--dire); }
+
+.pair { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 12px; }
+.pair-imgs { display: flex; align-items: center; gap: 3px; }
+.pair-imgs img { width: 44px; aspect-ratio: 256 / 144; object-fit: cover; border-radius: 2px; }
+.pair-imgs span { color: var(--muted); font-weight: 700; }
+.pair-text { min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+.pv { white-space: nowrap; font-size: 12px; }
+
+.hero-impact { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hi-col { min-width: 0; }
+.hi-name { font: 700 12px Inter, sans-serif; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--side); }
+.hi-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 6px; align-items: center; font-size: 11px; margin-bottom: 3px; }
+.hi-row img { width: 36px; aspect-ratio: 256 / 144; object-fit: cover; border-radius: 2px; }
+.hi-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hi-row .pos { color: var(--radiant); }
+.hi-row .neg { color: var(--dire); }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; font-size: 12px; }
+.role-row { display: flex; gap: 4px; align-items: baseline; }
+.role-row span { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-row i { color: var(--muted); font-style: normal; }
+.eval-note { margin-top: 12px; font-size: 11px; color: var(--muted); text-align: center; }
+
+@media (max-width: 1100px) {
+  .eval-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .odds { grid-template-columns: 1fr 1fr; }
+  .odds-bar { grid-column: 1 / -1; order: 3; }
+  .odds-team em { font-size: 26px; }
+  .roles { grid-template-columns: 1fr; }
+}
+.pair-text small { display: block; font-size: 10px; color: var(--side); }
+.pv .pos { color: var(--radiant); }
+.pv .neg { color: var(--dire); }
+.side-note { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 11px; color: var(--muted); }
+
+/* ================= Пик-трейнинг: расстановка позиций ================= */
+.positions {
+  position: relative; text-align: center; margin-bottom: 16px; padding: 20px 18px;
+  border: 1px solid var(--line-glow); border-radius: 4px;
+  background: radial-gradient(500px 200px at 50% 0%, rgba(140, 70, 255, .24), transparent 70%), var(--panel);
+  box-shadow: 0 0 50px rgba(120, 50, 230, .28), inset 0 0 40px rgba(110, 40, 220, .1);
+}
+.pos-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; text-align: left; }
+.pos-card { border: 1px solid var(--line); border-top: 3px solid var(--side); border-radius: 3px; padding: 12px; background: rgba(10, 5, 20, .55); min-width: 0; }
+.pos-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.pos-head b { font: 700 17px Cinzel, Georgia, serif; color: var(--side); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-head span { font: 700 10px Inter, sans-serif; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.pos-head em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pos-head em.ok { color: var(--radiant); }
+.pos-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .05); }
+.pos-row img { width: 64px; aspect-ratio: 256 / 144; object-fit: cover; border-radius: 2px; }
+.pos-hero { min-width: 0; }
+.pos-hero b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos-hero small { display: block; font-size: 11px; color: var(--muted); }
+.pos-hero small.warn { color: #ffb15c; }
+.pos-chips { display: flex; gap: 4px; }
+.pos-chip {
+  width: 30px; height: 30px; border-radius: 3px; border: 1px solid var(--line); cursor: pointer;
+  background: rgba(10, 5, 20, .8); color: var(--muted); font: 700 14px Cinzel, Georgia, serif;
+  display: inline-grid; place-items: center; transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.pos-chip:hover { border-color: var(--accent); color: var(--text); }
+.pos-chip.on { background: linear-gradient(180deg, #7b3df0, #4a1ca8); border-color: var(--accent); color: #fff; box-shadow: 0 0 12px rgba(150, 80, 255, .5); }
+.pos-row.ro .pos-chip { cursor: default; }
+.pos-card .btn { width: 100%; margin-top: 12px; }
+.pos-wait { padding: 18px 4px; text-align: center; animation: pulse-op 1.6s infinite; }
+
+.pos-badge {
+  position: absolute; top: 4px; left: 4px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 3px;
+  display: grid; place-items: center; font: 700 12px Cinzel, Georgia, serif; color: #fff;
+  background: rgba(90, 40, 180, .9); border: 1px solid var(--accent); box-shadow: 0 0 8px rgba(150, 80, 255, .5);
+}
+.hi-pos {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 4px; border-radius: 2px;
+  font: 700 10px Inter, sans-serif; font-style: normal; background: rgba(90, 40, 180, .8); color: #fff; vertical-align: 1px;
+}
+.hi-pos.warn { background: #b86a12; }
+.off-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 6px; align-items: center; font-size: 11px; margin-bottom: 4px; }
+.off-row img { width: 36px; aspect-ratio: 256 / 144; object-fit: cover; border-radius: 2px; }
+.off-row .pos { color: var(--radiant); }
+.off-row .neg { color: var(--dire); }
+
+@media (max-width: 900px) {
+  .pos-teams { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pos-row { grid-template-columns: 48px minmax(0, 1fr); }
+  .pos-row img { width: 48px; }
+  .pos-chips { grid-column: 1 / -1; }
+  .pos-chip { flex: 1; }
+}
+.hi-row span { white-space: normal; line-height: 1.15; overflow-wrap: anywhere; }

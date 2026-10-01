@@ -11,10 +11,14 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
-const FILES = ['index.html', 'app.js', 'engine.js', 'heroes.js', 'style.css', 'favicon.ico', 'favicon.png'];
+const FILES = ['index.html', 'app.js', 'engine.js', 'evaluator.js', 'heroes.js', 'draft-model.js', 'style.css', 'favicon.ico', 'favicon.png'];
 
 fs.mkdirSync(DOCS, { recursive: true });
 for (const f of FILES) {
+  if (!fs.existsSync(path.join(ROOT, f))) {
+    console.log(`  (пропущен ${f} — файла нет; для draft-model.js выполните npm run build:model)`);
+    continue;
+  }
   fs.copyFileSync(path.join(ROOT, f), path.join(DOCS, f));
   console.log(`  docs/${f}`);
 }

@@ -77,8 +77,15 @@
       bestOf, poolSize, bans,
       timer: !!s.timer,
       hotseat: !!s.hotseat,
+      // Пик-трейнинг: после драфта модель оценивает шансы и сама засчитывает победу
+      trainer: !!s.trainer,
+      bracket: ['all', 'legend_ancient', 'divine_immortal'].includes(s.bracket) ? s.bracket : 'all',
     };
   }
+
+  // Оценщик драфта подключается снаружи (сервер и браузер передают модель): (bracket, radiantIds, direIds) → оценка
+  let evaluator = null;
+  function setEvaluator(fn) { evaluator = fn; }
 
   /* ---------- Серия и карты ---------- */
 
@@ -106,7 +113,7 @@
     st.maps.push({
       pool: shuffle(rest, rnd).slice(0, st.settings.poolSize),
       coinMap: coin,
-      phase: coin ? 'coin' : 'choice1',   // coin → choice1 → choice2 → draft → done
+      phase: coin ? 'coin' : 'choice1',   // coin → choice1 → choice2 → draft → done [→ evaluated] → result
       coin: null,                          // { winner, at }
       chooser: coin ? null : other(prev.winner), // первым выбирает проигравший прошлую карту
       choices: [],                         // [{ team, value }]
@@ -195,9 +202,79 @@
     commitClock(st, step.team, now);
     m.actions.push(heroId);
     if (m.actions.length >= m.seq.length) {
-      m.phase = 'done';
       st.clock = null;
+      // Пик-трейнинг: перед оценкой капитаны расставляют героев по позициям 1–5
+      if (st.settings.trainer && evaluator) {
+        m.phase = 'positions';
+        m.positions = { A: null, B: null };
+      } else {
+        m.phase = 'done';
+      }
     }
+  }
+
+  // Отправка расстановки: { heroId: позиция } — каждый пикнутый герой команды на своей позиции 1–5
+  function submitPositions(st, m, team, positions) {
+    const picks = picksOf(m, team);
+    const map = {};
+    for (const id of picks) {
+      const p = +(positions || {})[id];
+      if (!(p >= 1 && p <= 5)) fail('Расставьте всех героев по позициям');
+      map[id] = p;
+    }
+    if (new Set(Object.values(map)).size !== picks.length) fail('У каждого героя должна быть своя позиция');
+    m.positions[team] = map;
+    if (m.positions.A && m.positions.B) {
+      m.phase = 'done';
+      evaluateMap(st, m);
+    }
+  }
+
+  function clearEvaluation(st, m) {
+    if (m.winner) revertWinner(st, m);
+    m.eval = null;
+    m.phase = 'positions';
+    m.positions = { A: null, B: null };
+  }
+
+  const picksOf = (m, team) => m.actions.filter((_, i) => m.seq[i].type === 'pick' && m.seq[i].team === team);
+
+  // Пик-трейнинг: оценка драфта и автоматическая победа стороне с бо́льшим шансом
+  function evaluateMap(st, m) {
+    if (!evaluator) return;
+    const rad = m.sides.A === 'radiant' ? 'A' : 'B';
+    const ev = evaluator(st.settings.bracket, picksOf(m, rad), picksOf(m, other(rad)), { ...m.positions.A, ...m.positions.B });
+    if (!ev) return;
+    m.eval = ev;
+    const p = Math.round(ev.pRadiant * 1000) / 10; // точность до 0,1%
+    if (p === 50) return;                          // ровно 50 на 50 — победителя выбирает админ
+    recordWinner(st, m, p > 50 ? rad : other(rad), true);
+  }
+
+  // Засчитывает победу на карте. В пик-трейнинге с автоматической победой карта ждёт кнопку «Следующая карта».
+  function recordWinner(st, m, team, auto, rnd) {
+    m.winner = team;
+    m.autoWin = !!auto;
+    st.score[team]++;
+    picksOf(m, 'A').concat(picksOf(m, 'B')).forEach((id) => st.burned.push(id));
+    if (st.score[team] >= Math.ceil(st.settings.bestOf / 2) || st.maps.length >= st.settings.bestOf) {
+      st.over = true;
+      m.phase = 'result';
+    } else if (auto) {
+      m.phase = 'evaluated';
+    } else {
+      m.phase = 'result';
+      startMap(st, rnd || Math.random);
+    }
+  }
+
+  function revertWinner(st, m) {
+    st.score[m.winner]--;
+    const picks = picksOf(m, 'A').concat(picksOf(m, 'B'));
+    st.burned = st.burned.filter((id) => !picks.includes(id));
+    m.winner = null;
+    m.autoWin = false;
+    st.over = false;
   }
 
   /**
@@ -252,20 +329,26 @@
         }
         return;
       }
+      case 'positions': {
+        if (m.phase !== 'positions') fail('Сейчас не этап расстановки позиций');
+        const team = role === 'A' || role === 'B' ? role : action.team;
+        if (team !== 'A' && team !== 'B') fail('Не указана команда');
+        if (!canControl(st, role, team)) fail('Можно расставлять только свою команду');
+        if (m.positions[other(team)] && m.positions[team]) fail('Обе команды уже подтвердили расстановку');
+        submitPositions(st, m, team, action.positions);
+        return;
+      }
       case 'winner': {
         if (!isAdmin) fail('Результат карты отмечает только админ');
         if (m.phase !== 'done') fail('Драфт ещё не завершён');
-        const team = action.team === 'B' ? 'B' : 'A';
-        m.winner = team;
-        st.score[team]++;
-        m.actions.forEach((id, i) => { if (m.seq[i].type === 'pick') st.burned.push(id); });
-        if (st.score[team] >= Math.ceil(st.settings.bestOf / 2) || st.maps.length >= st.settings.bestOf) {
-          st.over = true;
-          m.phase = 'result';
-        } else {
-          m.phase = 'result';
-          startMap(st, rnd);
-        }
+        recordWinner(st, m, action.team === 'B' ? 'B' : 'A', false, rnd);
+        return;
+      }
+      case 'next': {
+        if (!isAdmin) fail('Следующую карту запускает админ');
+        if (m.phase !== 'evaluated') fail('Карта ещё не завершена');
+        m.phase = 'result';
+        startMap(st, rnd);
         return;
       }
       case 'undo': {
@@ -282,22 +365,42 @@
     const m = curMap(st);
     // Отмена результата прошлой карты (если новая карта ещё не началась)
     const untouched = (m.phase === 'coin') || (m.phase === 'choice1' && !m.coinMap);
-    if ((untouched && st.maps.length > 1) || st.over) {
-      if (!st.over) st.maps.pop();
+    if (untouched && st.maps.length > 1) {
+      st.maps.pop();
       const prev = curMap(st);
-      st.score[prev.winner]--;
-      const picks = prev.actions.filter((_, i) => prev.seq[i].type === 'pick');
-      st.burned = st.burned.filter((id) => !picks.includes(id));
-      prev.winner = null;
-      prev.phase = 'done';
-      st.over = false;
       st.clock = null;
+      // Авто-победа пик-трейнинга: сначала возвращаемся к экрану оценки, победа пока остаётся
+      if (prev.autoWin) { prev.phase = 'evaluated'; return; }
+      revertWinner(st, prev);
+      prev.phase = 'done';
+      return;
+    }
+    if (st.over) {
+      st.clock = null;
+      // Пик-трейнинг: отмена результата возвращает к расстановке позиций
+      if (m.eval) { clearEvaluation(st, m); return; }
+      revertWinner(st, m);
+      m.phase = 'done';
       return;
     }
     switch (m.phase) {
+      case 'evaluated':
+        clearEvaluation(st, m);
+        return;
+      case 'positions':
+        // Сначала сбрасываем отправленные расстановки, затем — последний пик
+        if (m.positions.A || m.positions.B) { m.positions = { A: null, B: null }; return; }
+        m.positions = null;
+        m.actions.pop();
+        m.phase = 'draft';
+        startClock(st, now, true);
+        return;
       case 'done':
+        if (m.eval) { clearEvaluation(st, m); return; } // 50 на 50 в пик-трейнинге
+        // fallthrough
       case 'draft':
         if (m.actions.length) {
+          m.eval = null;
           m.actions.pop();
           m.phase = 'draft';
           startClock(st, now, true);
@@ -337,7 +440,7 @@
 
   return {
     TURN_TIME, RESERVE_TIME, COIN_MS, CHOICES,
-    other, isCoinMap, sanitizeSettings, createSeries, apply, tick,
+    other, isCoinMap, sanitizeSettings, createSeries, apply, tick, setEvaluator,
     curMap, curStep, usedInMap, isAvailable, actingTeam, canControl, clockView,
   };
 });
