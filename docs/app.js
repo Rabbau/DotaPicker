@@ -407,7 +407,7 @@ function renderPrep() {
     $('prepTitle').innerHTML = `<b class="${sideCls(team)}">${esc(teamName(team))}</b> выбирает`;
     $('prepText').textContent = m.coinMap
       ? `Монету выиграла команда ${teamName(team)}. Выберите сторону или очередь пика — второй вариант достанется сопернику на выбор.`
-      : `${teamName(team)} проиграла последний бросок монетки и выбирает первой. Выберите сторону или очередь пика.`;
+      : `${teamName(team)} проиграла монетку на прошлой карте и выбирает первой. Выберите сторону или очередь пика.`;
     options = ['radiant', 'dire', 'first', 'last'];
   } else {
     const firstC = m.choices[0];

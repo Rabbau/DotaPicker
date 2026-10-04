@@ -59,9 +59,9 @@
     return steps.map((s) => ({ team: s.who === 'F' ? first : other(first), type: s.type }));
   }
 
-  // Монетка бросается на первой и на решающей (последней возможной) карте
-  function isCoinMap(index, bestOf) {
-    return index === 0 || (bestOf > 1 && index === bestOf - 1);
+  // Монетка бросается на нечётных картах (1, 3, 5); на чётных первым выбирает проигравший монетку на предыдущей карте
+  function isCoinMap(index) {
+    return index % 2 === 0;
   }
 
   function sanitizeSettings(s, heroCount) {
@@ -108,7 +108,7 @@
   function startMap(st, rnd) {
     const index = st.maps.length;
     const rest = st.heroIds.filter((id) => !st.burned.includes(id));
-    const coin = isCoinMap(index, st.settings.bestOf);
+    const coin = isCoinMap(index);
     // На картах без монетки первым выбирает проигравший последний бросок монетки
     const lastCoin = st.maps.slice().reverse().find((mm) => mm.coin);
     st.maps.push({
