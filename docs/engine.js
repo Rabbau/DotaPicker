@@ -440,7 +440,7 @@
   }
 
   return {
-    TURN_TIME, RESERVE_TIME, COIN_MS, CHOICES,
+    TURN_TIME, RESERVE_TIME, COIN_MS, CHOICES, ORDER_WITH_BANS, ORDER_NO_BANS,
     other, isCoinMap, sanitizeSettings, createSeries, apply, tick, setEvaluator,
     curMap, curStep, usedInMap, isAvailable, actingTeam, canControl, clockView,
   };
