@@ -1074,6 +1074,7 @@ function readSettings() {
     hotseat: segValue('mode') === 'hotseat',
     trainer: segValue('trainer') === 'on',
     bracket: $('bracket').value || 'all',
+    poolMode: segValue('poolMode'),
   };
 }
 
@@ -1140,7 +1141,7 @@ function renderSummary(s, trainerOn) {
   const rows = [
     ['Формат', `Bo${s.bestOf}`],
     ['Режим', s.hotseat || !serverInfo ? 'Одно устройство' : 'Капитаны по ссылкам'],
-    ['Пул на карту', `${s.poolSize} героев`],
+    ['Пул на карту', `${s.poolSize} героев · ${s.poolMode === 'balanced' ? 'поровну по атрибутам' : 'рандом'}`],
     ['Баны', s.bans ? 'Есть' : 'Только пики'],
     ['Таймер', s.timer ? '30с + 130с резерв' : 'Без таймера'],
     ['Тип', trainerOn ? `Пик-трейнинг${bracketLabel ? ' · ' + bracketLabel : ''}` : 'Обычный'],
@@ -1203,7 +1204,7 @@ async function createLobby() {
       rememberLobby({ id: d.id, key: d.keys.admin, nameA: s.nameA, nameB: s.nameB, bestOf: s.bestOf, at: Date.now() });
       location.href = `?lobby=${d.id}&key=${d.keys.admin}`;
     } else {
-      const state = E.createSeries({ ...s, hotseat: true }, HEROES.map((h) => h.id), Date.now());
+      const state = E.createSeries({ ...s, hotseat: true }, HEROES, Date.now());
       lsSet(LOCAL_KEY, state);
       rememberLobby({ local: true, nameA: s.nameA, nameB: s.nameB, bestOf: s.bestOf, at: Date.now() });
       location.href = '?local=1';

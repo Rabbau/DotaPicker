@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -91,6 +91,20 @@
                 <button type="button" data-v="48">48</button>
                 <button type="button" data-v="60">60</button>
               </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Состав пула</div>
+            <div class="seg seg-cards" id="poolMode">
+              <button type="button" data-v="random" class="on">
+                <b>Полный рандом</b>
+                <small>Любые герои — по атрибутам может выйти неравно</small>
+              </button>
+              <button type="button" data-v="balanced">
+                <b>Поровну по атрибутам</b>
+                <small>В каждом из 4 атрибутов одинаковое число героев</small>
+              </button>
             </div>
           </div>
 
@@ -314,10 +328,10 @@
     <div class="tt-sub" id="turnToastSub"></div>
   </div>
 
-  <script src="heroes.js?v=14"></script>
-  <script src="draft-model.js?v=14"></script>
-  <script src="evaluator.js?v=14"></script>
-  <script src="engine.js?v=14"></script>
-  <script src="app.js?v=14"></script>
+  <script src="heroes.js?v=18"></script>
+  <script src="draft-model.js?v=18"></script>
+  <script src="evaluator.js?v=18"></script>
+  <script src="engine.js?v=18"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

@@ -87,7 +87,7 @@ button { font-family: var(--f-text); }
 
 /* ---------- Шапка ---------- */
 .topbar { border-bottom: 1px solid var(--line); background: var(--top); }
-.topbar-in { max-width: none; margin: 0 auto; padding: 18px 32px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.topbar-in { max-width: 1920px; margin: 0 auto; padding: 18px 32px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .brand-dota { font: 700 22px var(--f-latin); letter-spacing: .06em; color: #F2ECFF; }
 .brand-torneum { font: 600 12px var(--f-latin); letter-spacing: .4em; color: #9D8FC7; }
@@ -214,7 +214,7 @@ button { font-family: var(--f-text); }
 .recent-item svg { flex: none; color: var(--muted); }
 
 /* ---------- Экран драфта: шапка ---------- */
-.draft-top { padding: 14px 24px; }
+.draft-top { max-width: 1920px; padding: 14px 24px; }
 .dt-left { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; }
 .dt-left .eyebrow { font-size: 11px; letter-spacing: .4em; color: #8E7FC0; }
 .dt-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -237,7 +237,7 @@ button { font-family: var(--f-text); }
 .conn.bad { background: var(--dire); box-shadow: 0 0 8px var(--dire); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .3; } }
 
-.draft-main { max-width: none; margin: 0 auto; padding: 20px 24px 48px; display: flex; flex-direction: column; gap: 20px; }
+.draft-main { max-width: 1920px; margin: 0 auto; padding: 20px 24px 16px; display: flex; flex-direction: column; gap: 20px; }
 
 /* Панель админа в лобби */
 .admin-panel { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 18px; border-style: dashed; border-color: var(--hi-line); background: var(--panel); }
@@ -442,7 +442,7 @@ button { font-family: var(--f-text); }
 .preview-hint { font-size: 12px; color: var(--muted2); }
 
 /* ---------- Пул ---------- */
-.pool-card { padding: 20px; gap: 16px; background: var(--panel); border-color: var(--line); }
+.pool-card { padding: 20px; gap: 16px; background: var(--panel); border-color: var(--line); container-type: inline-size; }
 .pool-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .pool-title { display: flex; align-items: baseline; gap: 10px; }
 .pool-title h2 { margin: 0; font-size: 18px; font-weight: 600; }
@@ -466,8 +466,11 @@ button { font-family: var(--f-text); }
 .attr-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #DCD3F5; }
 .attr-head i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .attr-head em { font-style: normal; font-weight: 400; color: var(--muted2); }
+/* Иконки героев заполняют блок атрибута: 5 в ряд */
 .hero-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.pool.single .hero-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.pool.single .hero-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); }
+/* Если два блока атрибутов в ряд не помещаются по 5 героев — блоки встают друг под другом */
+@container (max-width: 760px) { .pool { grid-template-columns: 1fr; } }
 .a-str { --c: var(--str); --tint: var(--str-tint); }
 .a-agi { --c: var(--agi); --tint: var(--agi-tint); }
 .a-int { --c: var(--int); --tint: var(--int-tint); }
@@ -662,8 +665,8 @@ button { font-family: var(--f-text); }
   .link-name { width: auto; flex: 1; }
   .link-row input { flex-basis: 100%; order: 3; }
   .hist-row { grid-template-columns: 1fr; }
-  .hero-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .pool.single .hero-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+  .hero-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; }
+  .pool.single .hero-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .odds { grid-template-columns: 1fr 1fr; }
   .odds-bar { grid-column: 1 / -1; order: 3; }
   .pos-row { grid-template-columns: 48px minmax(0, 1fr); }

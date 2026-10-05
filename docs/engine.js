@@ -80,6 +80,8 @@
       // Пик-трейнинг: после драфта модель оценивает шансы и сама засчитывает победу
       trainer: !!s.trainer,
       bracket: ['all', 'legend_ancient', 'divine_immortal'].includes(s.bracket) ? s.bracket : 'all',
+      // Пул героев: 'random' — полный рандом, 'balanced' — поровну героев каждого атрибута
+      poolMode: s.poolMode === 'balanced' ? 'balanced' : 'random',
     };
   }
 
@@ -89,12 +91,19 @@
 
   /* ---------- Серия и карты ---------- */
 
-  function createSeries(settings, heroIds, now, rnd = Math.random) {
+  /**
+   * heroes — список героев: id или { id, attr }. Атрибуты нужны для режима «поровну по атрибутам».
+   */
+  function createSeries(settings, heroes, now, rnd = Math.random) {
+    const heroIds = heroes.map((h) => (typeof h === 'object' ? h.id : h));
+    const heroAttr = {};
+    heroes.forEach((h) => { if (typeof h === 'object' && h.attr) heroAttr[h.id] = h.attr; });
     const st = {
       v: 1,
       createdAt: now,
       settings: sanitizeSettings(settings, heroIds.length),
-      heroIds: heroIds.slice(),
+      heroIds,
+      heroAttr,
       burned: [],
       maps: [],
       score: { A: 0, B: 0 },
@@ -105,6 +114,27 @@
     return st;
   }
 
+// Пул карты из доступных (ещё не сыгранных в серии) героев
+  function buildPool(st, rest, rnd) {
+    const size = st.settings.poolSize;
+    const attrs = ['str', 'agi', 'int', 'all'];
+    if (st.settings.poolMode !== 'balanced' || !st.heroAttr || !Object.keys(st.heroAttr).length) {
+      return shuffle(rest, rnd).slice(0, size);
+    }
+    // Поровну по атрибутам; остаток от деления на 4 — случайным атрибутам
+    const groups = Object.fromEntries(attrs.map((a) => [a, shuffle(rest.filter((id) => st.heroAttr[id] === a), rnd)]));
+    const quota = Object.fromEntries(attrs.map((a) => [a, Math.floor(size / 4)]));
+    shuffle(attrs, rnd).slice(0, size % 4).forEach((a) => { quota[a]++; });
+    const pool = [];
+    for (const a of attrs) pool.push(...groups[a].splice(0, quota[a]));
+    // Если в каком-то атрибуте героев не хватило (поздние карты Fearless) — добираем из остальных
+    if (pool.length < size) {
+      const left = shuffle(rest.filter((id) => !pool.includes(id)), rnd);
+      pool.push(...left.slice(0, size - pool.length));
+    }
+    return pool;
+  }
+
   function startMap(st, rnd) {
     const index = st.maps.length;
     const rest = st.heroIds.filter((id) => !st.burned.includes(id));
@@ -112,7 +142,7 @@
     // На картах без монетки первым выбирает проигравший последний бросок монетки
     const lastCoin = st.maps.slice().reverse().find((mm) => mm.coin);
     st.maps.push({
-      pool: shuffle(rest, rnd).slice(0, st.settings.poolSize),
+      pool: buildPool(st, rest, rnd),
       coinMap: coin,
       phase: coin ? 'coin' : 'choice1',   // coin → choice1 → choice2 → draft → done [→ evaluated] → result
       coin: null,                          // { winner, at }
@@ -355,7 +385,7 @@
       case 'restart': {
         // Новая серия с теми же настройками в том же лобби — ссылки капитанов и зрителей продолжают работать
         if (!isAdmin) fail('Начать заново может только админ');
-        const fresh = createSeries(st.settings, st.heroIds, now, rnd);
+        const fresh = createSeries(st.settings, st.heroIds.map((id) => ({ id, attr: (st.heroAttr || {})[id] })), now, rnd);
         Object.keys(st).forEach((k) => delete st[k]);
         Object.assign(st, fresh);
         return;

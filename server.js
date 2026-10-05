@@ -158,7 +158,7 @@ const server = http.createServer(async (req, res) => {
       const lobby = {
         id,
         keys: { admin: token(8), A: token(8), B: token(8) },
-        state: Engine.createSeries(settings, HEROES.map((h) => h.id), Date.now()),
+        state: Engine.createSeries(settings, HEROES, Date.now()),
         clients: new Set(),
       };
       lobbies.set(id, lobby);
