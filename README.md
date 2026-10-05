@@ -87,6 +87,15 @@
 | ![Выбор проигравшего](docs/screenshots/05-loser-choice.jpg) | ![Драфт](docs/screenshots/06-draft.jpg) |
 | **Экран зрителя / OBS** | **Админ отмечает победителя карты** |
 | ![Зритель](docs/screenshots/07-spectator.jpg) | ![Результат карты](docs/screenshots/08-map-result.jpg) |
+| **Пик-трейнинг: расстановка позиций** | **Пик-трейнинг: оценка драфта** |
+| ![Расстановка позиций](docs/screenshots/11-positions.jpg) | ![Оценка драфта](docs/screenshots/12-eval.jpg) |
+
+<details>
+<summary><b>Песочница «Протестировать другой пик»</b></summary>
+
+![Песочница](docs/screenshots/13-sandbox.jpg)
+
+</details>
 
 <details>
 <summary><b>Карта 2: Fearless-пул и история серии (полная страница)</b></summary>
