@@ -352,6 +352,14 @@
         startMap(st, rnd);
         return;
       }
+      case 'restart': {
+        // Новая серия с теми же настройками в том же лобби — ссылки капитанов и зрителей продолжают работать
+        if (!isAdmin) fail('Начать заново может только админ');
+        const fresh = createSeries(st.settings, st.heroIds, now, rnd);
+        Object.keys(st).forEach((k) => delete st[k]);
+        Object.assign(st, fresh);
+        return;
+      }
       case 'undo': {
         if (!isAdmin) fail('Отмена доступна только админу');
         undo(st, now);

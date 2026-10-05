@@ -176,8 +176,8 @@ function render() {
   for (const t of ['A', 'B']) {
     $('scoreName' + t).textContent = teamName(t);
     $('score' + t).textContent = S.score[t];
-    // Название команды в цвет её стороны; до выбора сторон команда 1 — зелёная (Radiant по умолчанию), команда 2 — красная
-    $('scoreName' + t).className = sideOf(t) ? sideCls(t) : t === 'A' ? 'side-r' : 'side-d';
+    // Название команды в цвет её стороны; пока стороны не выбраны — серое
+    $('scoreName' + t).className = sideOf(t) ? sideCls(t) : 'side-none';
   }
   const roleText = view.role === 'admin'
     ? (s.hotseat ? 'Админ · одно устройство' : 'Админ')
@@ -213,8 +213,8 @@ function render() {
     const t = pos === 'L' ? leftTeam : E.other(leftTeam);
     const side = sideOf(t);
     const col = $('col' + pos);
-    // До выбора сторон команда 1 — слева и зелёная, команда 2 — справа и красная
-    const look = side || (t === 'A' ? 'radiant' : 'dire');
+    // До выбора сторон команда 1 — слева, команда 2 — справа
+    const look = side || 'neutral'; // до выбора сторон колонки серые
     col.className = `team-col ${look}${acting === t && !flying && !S.over ? ' active' : ''}${view.role === t ? ' mine' : ''}`;
     $('name' + pos).textContent = teamName(t);
     $('sub' + pos).innerHTML = side
@@ -231,7 +231,62 @@ function render() {
   renderResult();
   renderHistory();
   renderTimers();
+  renderTurnToast();
 }
+
+/* ---------- Уведомление капитану «Ваш пик / Ваш бан» ----------
+   Только в режиме «Капитаны по ссылкам» и только у того, чей сейчас ход.
+   При наведении плашка уезжает вверх, чтобы было видно, что под ней; клики проходят сквозь неё. */
+let turnToastRect = null;
+
+function renderTurnToast() {
+  const box = $('turnToast');
+  const S = st();
+  const m = map();
+  const role = view.role;
+  let title = '';
+  let sub = '';
+  let kind = '';
+  if (!view.local && !S.settings.hotseat && (role === 'A' || role === 'B') && !S.over && !coinFlying(m)) {
+    const step = E.curStep(S);
+    if (step && step.team === role) {
+      kind = step.type;
+      title = step.type === 'pick' ? 'Ваш пик' : 'Ваш бан';
+      sub = `${teamName(role)} · выберите героя в пуле`;
+    } else if (['choice1', 'choice2'].includes(m.phase) && E.actingTeam(S) === role) {
+      kind = 'choice';
+      title = 'Ваш выбор';
+      sub = m.phase === 'choice1' ? 'Сторона или очередь пика' : (E.CHOICES[m.choices[0].value].kind === 'side' ? 'Очередь пика' : 'Сторона');
+    } else if (m.phase === 'positions' && m.positions && !m.positions[role]) {
+      kind = 'choice';
+      title = 'Расставьте позиции';
+      sub = 'Распределите героев по позициям 1–5';
+    }
+  }
+  const show = !!title;
+  if (show) {
+    $('turnToastTitle').textContent = title;
+    $('turnToastSub').textContent = sub;
+    box.dataset.kind = kind;
+  }
+  if (show !== box.classList.contains('show')) {
+    box.classList.toggle('show', show);
+    box.classList.remove('peek');
+    turnToastRect = null;
+  }
+}
+
+// Наведение: пока курсор над местом плашки — она уехала вверх («peek»)
+document.addEventListener('mousemove', (e) => {
+  const box = $('turnToast');
+  if (!box || !box.classList.contains('show')) return;
+  if (!box.classList.contains('peek')) turnToastRect = box.getBoundingClientRect();
+  const r = turnToastRect;
+  if (!r) return;
+  const pad = 8;
+  const inside = e.clientX >= r.left - pad && e.clientX <= r.right + pad && e.clientY >= r.top - pad && e.clientY <= r.bottom + pad;
+  box.classList.toggle('peek', inside);
+});
 
 const emptyPick = (n, cls = '') => el('div', `slot pick empty${cls}`, `<span class="slot-n">${n}</span><span class="slot-t">свободно</span>`);
 
@@ -640,10 +695,15 @@ function renderResult() {
     if (view.role === 'admin') {
       const u = el('button', 'btn', '↶ Отменить результат');
       u.addEventListener('click', () => act({ type: 'undo' }));
-      const n = el('button', 'btn cta-sm', 'Новое лобби');
+      const r = el('button', 'btn cta-sm', 'Начать заново');
+      r.title = 'Новая серия с теми же настройками — ссылки капитанов и зрителей продолжат работать';
+      r.addEventListener('click', () => {
+        if (window.confirm('Начать серию заново с теми же настройками? Текущая серия будет сброшена.')) act({ type: 'restart' });
+      });
+      const n = el('button', 'btn', 'Новое лобби');
       n.addEventListener('click', newLobby);
-      btns.append(u, n);
-    }
+      btns.append(u, r, n);
+    } else btns.appendChild(el('div', 'muted', 'Начать заново или создать новое лобби может админ.'));
     return;
   }
   // Пик-трейнинг: победа засчитана автоматически, ждём следующую карту
@@ -674,13 +734,120 @@ function renderResult() {
   }
 }
 
+/* ---------- Пик-трейнинг: песочница «другой пик» ----------
+   Зритель заменяет пикнутых героев и видит, как изменились бы шансы.
+   Считается в браузере по той же модели и на результат карты не влияет. */
+let sandbox = null; // { key, swaps: { исходный id: новый id }, sel: исходный id | null }
+
+const sandboxKey = () => `${view.id}:${st().maps.length}`;
+
+// Позиции героев реального драфта (из оценки) — замена встаёт на позицию заменённого
+function realPositions(m) {
+  return Object.fromEntries(m.eval.heroes.filter((h) => h.pos).map((h) => [h.id, h.pos]));
+}
+
+function sandboxEval(m) {
+  if (!sandbox || !MODEL || !Object.keys(sandbox.swaps).length) return null;
+  const radT = m.sides.A === 'radiant' ? 'A' : 'B';
+  const swap = (id) => sandbox.swaps[id] || id;
+  const pos = {};
+  for (const [id, p] of Object.entries(realPositions(m))) pos[swap(+id)] = p;
+  return DraftEvaluator.evaluate(MODEL, st().settings.bracket, picksOf(m, radT).map(swap), picksOf(m, E.other(radT)).map(swap), pos);
+}
+
+// Кого можно поставить вместо героя: свободные герои пула карты (не пикнутые, не забаненные, не взятые в другой замене)
+function sandboxCandidates(m) {
+  const taken = new Set([...m.actions, ...Object.values(sandbox.swaps)]);
+  const cur = sandbox.swaps[sandbox.sel];
+  const order = { str: 0, agi: 1, int: 2, all: 3 };
+  return m.pool.filter((id) => !taken.has(id) || id === cur)
+    .map((id) => HERO_BY_ID.get(id))
+    .sort((a, b) => order[a.attr] - order[b.attr] || a.name.localeCompare(b.name));
+}
+
+function renderSandbox(m, radT, real, ev) {
+  if (!MODEL) return '';
+  if (!sandbox) {
+    return `<div class="sbx-open"><button type="button" class="btn" data-sb="open">Протестировать другой пик</button>
+      <span class="muted">Замените героя и посмотрите, как изменятся шансы — на результат карты не влияет</span></div>`;
+  }
+  const pos = realPositions(m);
+  const team = (t) => {
+    const side = sideOf(t);
+    const tiles = picksOf(m, t).map((orig) => {
+      const cur = sandbox.swaps[orig] || orig;
+      const h = HERO_BY_ID.get(cur);
+      const o = HERO_BY_ID.get(orig);
+      const cls = `sbx-hero${sandbox.sel === orig ? ' sel' : ''}${cur !== orig ? ' swapped' : ''}`;
+      return `<button type="button" class="${cls}" data-sb="sel" data-id="${orig}" title="${esc(h.name)}${cur !== orig ? ` (вместо ${esc(o.name)})` : ''}">
+        <img src="${heroImg(h)}" alt=""><span class="pos-badge">${pos[orig] || '?'}</span><span class="sbx-name">${esc(h.name)}</span>
+        ${cur !== orig ? `<span class="sbx-was">вместо ${esc(o.name)}</span>` : ''}</button>`;
+    }).join('');
+    return `<div class="sbx-team ${side === 'radiant' ? 'side-r' : 'side-d'}"><div class="sbx-team-name">${esc(teamName(t))} · ${side === 'radiant' ? 'Radiant' : 'Dire'}</div><div class="sbx-row">${tiles}</div></div>`;
+  };
+  let picker = '<div class="sbx-hint">Нажмите на героя, которого хотите заменить.</div>';
+  if (sandbox.sel != null) {
+    const o = HERO_BY_ID.get(sandbox.sel);
+    picker = `<div class="sbx-pick">
+      <div class="sbx-pick-head"><span>Замена для <b>${esc(o.name)}</b> · поз. ${pos[sandbox.sel] || '?'}</span>
+        <label class="search-box small"><input data-sb="q" placeholder="Поиск героя" autocomplete="off"></label></div>
+      <div class="sbx-grid">${sandboxCandidates(m).map((h) => `<button type="button" class="sbx-cand a-${h.attr}${sandbox.swaps[sandbox.sel] === h.id ? ' on' : ''}" data-sb="swap" data-id="${h.id}" data-name="${esc(h.name.toLowerCase())}" title="${esc(h.name)}">
+        <img src="${heroImg(h)}" alt=""><span>${esc(h.name)}</span></button>`).join('')}</div></div>`;
+  }
+  // Сравнение «было → стало» для обеих команд
+  let delta = '';
+  if (ev !== real) {
+    const d = (ev.pRadiant - real.pRadiant) * 100;
+    const fmtP = (p) => `${(p * 100).toFixed(1)}%`;
+    delta = `<div class="sbx-delta">
+      <span class="side-r"><b>${esc(teamName(radT))}</b> ${fmtP(real.pRadiant)} → <b>${fmtP(ev.pRadiant)}</b></span>
+      <em class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}% Radiant</em>
+      <span class="side-d"><b>${esc(teamName(E.other(radT)))}</b> ${fmtP(1 - real.pRadiant)} → <b>${fmtP(1 - ev.pRadiant)}</b></span></div>`;
+  }
+  return `<div class="sandbox">
+    <div class="sbx-head"><div><b>Песочница · другой пик</b><span class="muted">Шансы пересчитываются по той же модели. На результат карты не влияет.</span></div>
+      <div class="sbx-actions"><button type="button" class="btn small" data-sb="reset"${Object.keys(sandbox.swaps).length ? '' : ' disabled'}>Сбросить замены</button>
+      <button type="button" class="btn small" data-sb="close">Закрыть</button></div></div>
+    ${delta}
+    <div class="sbx-teams">${team(radT)}${team(E.other(radT))}</div>
+    ${picker}
+  </div>`;
+}
+
+function onSandboxClick(e) {
+  const t = e.target.closest('[data-sb]');
+  if (!t || t.tagName === 'INPUT') return;
+  const id = +t.dataset.id;
+  switch (t.dataset.sb) {
+    case 'open': sandbox = { key: sandboxKey(), swaps: {}, sel: null }; break;
+    case 'close': sandbox = null; break;
+    case 'reset': sandbox.swaps = {}; sandbox.sel = null; break;
+    case 'sel': sandbox.sel = sandbox.sel === id ? null : id; break;
+    case 'swap':
+      if (id === sandbox.sel) delete sandbox.swaps[sandbox.sel];
+      else sandbox.swaps[sandbox.sel] = id;
+      sandbox.sel = null;
+      break;
+    default: return;
+  }
+  render();
+}
+
+function onSandboxSearch(e) {
+  if (e.target.dataset.sb !== 'q') return;
+  const q = e.target.value.trim().toLowerCase();
+  $('evalBox').querySelectorAll('.sbx-cand').forEach((b) => b.classList.toggle('dim', !!q && !b.dataset.name.includes(q)));
+}
+
 /* Пик-трейнинг: шансы команд и разбор драфта */
 function renderEval() {
   const box = $('evalBox');
   const m = map();
-  const ev = m.eval;
-  box.classList.toggle('hidden', !ev);
-  if (!ev) return;
+  const real = m.eval;
+  box.classList.toggle('hidden', !real);
+  if (!real) { sandbox = null; return; }
+  if (sandbox && sandbox.key !== sandboxKey()) sandbox = null;
+  const ev = sandboxEval(m) || real;
   const radT = m.sides.A === 'radiant' ? 'A' : 'B';
   const dirT = E.other(radT);
   const pR = ev.pRadiant * 100;
@@ -713,12 +880,14 @@ function renderEval() {
   const roles = ev.composition.filter((c) => c.key !== 'Melee');
   const offRole = ev.heroes.filter((h) => h.pos && h.posShare != null && h.posShare < 0.1);
 
-  const decided = m.winner && m.autoWin;
+  const testing = ev !== real;
+  const decided = m.winner && m.autoWin && !testing;
   box.innerHTML = `
     <div class="eval-head">
-      <div class="eval-title">Оценка драфта</div>
+      <div class="eval-title">${testing ? 'Оценка драфта с заменами' : 'Оценка драфта'}</div>
       <div class="eval-sub">Модель STRATZ · ${esc(ev.bracket.label)} · угадывает исход матча по драфту в ${Math.round(ev.bracket.accuracy * 100)}% случаев</div>
     </div>
+    ${renderSandbox(m, radT, real, ev)}
     <div class="odds">
       <div class="odds-team side-r ${pR > pD ? 'lead' : ''}"><small>Radiant</small><b>${esc(teamName(radT))}</b><em>${fmt(pR)}</em></div>
       <div class="odds-bar"><span class="r" style="width:${pR}%"></span><span class="d" style="width:${pD}%"></span><i></i></div>
@@ -833,7 +1002,7 @@ function renderAdmin() {
   const isAdmin = view.role === 'admin';
   const hasClock = !!S.clock && !!E.curStep(S);
   // Без сервера ссылок нет — панель нужна только для паузы таймера
-  $('adminPanel').classList.toggle('hidden', !isAdmin || (view.local && !hasClock));
+  $('adminPanel').classList.toggle('hidden', !isAdmin || (!!view.local && !hasClock));
   if (!isAdmin) return;
   $('adminLinks').classList.toggle('hidden', !!view.local);
   if (!view.local) {
@@ -1084,6 +1253,8 @@ async function detectServer() {
 
 function initDraftUi() {
   $('confirmBtn').addEventListener('click', confirmPick);
+  $('evalBox').addEventListener('click', onSandboxClick);
+  $('evalBox').addEventListener('input', onSandboxSearch);
   $('undoBtn').addEventListener('click', () => act({ type: 'undo' }));
   $('pauseBtn').addEventListener('click', () => act({ type: 'pause' }));
   $('newLobbyBtn').addEventListener('click', () => {

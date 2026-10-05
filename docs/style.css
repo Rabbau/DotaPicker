@@ -226,6 +226,7 @@ button { font-family: var(--f-text); }
 .sb-mid { display: flex; flex-direction: column; align-items: center; }
 .sb-team .side-r { color: var(--radiant); }
 .sb-team .side-d { color: var(--dire); }
+.sb-team .side-none { color: var(--muted); }
 .sb-score { display: flex; align-items: center; gap: 12px; font: 700 34px/1 var(--f-latin); }
 .sb-score i { font-style: normal; font-size: 20px; color: var(--dim); }
 .dt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; flex: 1 1 220px; }
@@ -310,7 +311,8 @@ button { font-family: var(--f-text); }
 }
 .team-col.radiant { --side: var(--radiant); }
 .team-col.dire { --side: var(--dire); }
-.team-col.neutral { --side: var(--violet); }
+.team-col.neutral { --side: var(--muted); }
+.team-col.neutral.active { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet), 0 0 32px rgba(167, 139, 250, .18); }
 .team-col.active { border-color: var(--side); box-shadow: 0 0 0 1px var(--side), 0 0 32px color-mix(in srgb, var(--side) 18%, transparent); }
 .tc-name { font-size: 20px; font-weight: 600; color: var(--side); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team-col.mine .tc-name::after { content: ' · вы'; font-size: 12px; font-weight: 400; color: var(--muted2); }
@@ -328,8 +330,6 @@ button { font-family: var(--f-text); }
 .slot.pick.filled { padding: 0 10px 0 0; gap: 10px; border: 1px solid color-mix(in srgb, var(--side) 55%, transparent); background: var(--field); color: var(--strong); animation: pop .25s ease-out; }
 .slot.pick.filled img { width: 96px; height: 100%; object-fit: cover; flex: none; }
 .slot.pick.filled .hname { font-size: 13px; font-weight: 600; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.slot.current { border: 2px solid var(--violet); animation: pulseBorder 1.2s infinite; }
-@keyframes pulseBorder { 50% { border-color: transparent; } }
 @keyframes pop { from { transform: scale(.94); opacity: 0; } }
 .slot.ban { aspect-ratio: 256 / 144; border: 1px dashed var(--dash); border-radius: 3px; }
 .slot.ban.filled { border: 1px solid var(--field-line); animation: pop .25s ease-out; }
@@ -680,3 +680,97 @@ button { font-family: var(--f-text); }
 .result-title .ic-trophy, .verdict .ic-trophy { width: 22px; height: 22px; vertical-align: -4px; margin-right: 4px; }
 .result-btns .btn .ic-trophy { color: currentColor; }
 .hist-map small .ic-trophy { width: 13px; height: 13px; vertical-align: -2px; color: var(--accent-text); }
+
+/* ---------- Пик-трейнинг: песочница «другой пик» ---------- */
+.sbx-open { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.sandbox { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px dashed var(--accent-line); border-radius: 4px; background: rgba(42, 27, 82, .35); }
+.sbx-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.sbx-head b { display: block; font-size: 15px; font-weight: 600; color: var(--strong); }
+.sbx-head .muted { font-size: 12px; }
+.sbx-actions { display: flex; gap: 8px; }
+.sbx-delta { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border-radius: 3px; background: var(--field); border: 1px solid var(--field-line); font-size: 13px; }
+.sbx-delta .side-r { color: var(--radiant-text); }
+.sbx-delta .side-d { color: var(--dire-text); }
+.sbx-delta b { color: var(--strong); }
+.sbx-delta em { font-style: normal; font-weight: 700; padding: 3px 10px; border-radius: 3px; }
+.sbx-delta em.up { color: var(--radiant-text); background: rgba(79, 209, 165, .14); }
+.sbx-delta em.down { color: var(--dire-text); background: rgba(229, 72, 77, .16); }
+.sbx-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sbx-team { min-width: 0; }
+.sbx-team-name { font-size: 12px; font-weight: 600; color: var(--side); margin-bottom: 6px; }
+.sbx-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.sbx-hero {
+  position: relative; display: flex; flex-direction: column; padding: 0; overflow: hidden; cursor: pointer; text-align: left;
+  border: 1px solid var(--field-line); border-radius: 3px; background: var(--field); color: var(--text); font-family: var(--f-text);
+}
+.sbx-hero img { width: 100%; aspect-ratio: 256 / 144; object-fit: cover; display: block; }
+.sbx-hero .sbx-name { padding: 4px 5px 1px; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbx-hero .sbx-was { padding: 0 5px 4px; font-size: 10px; color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbx-hero:hover { border-color: var(--accent-line); }
+.sbx-hero.sel { border-color: var(--violet); box-shadow: 0 0 0 2px var(--violet); }
+.sbx-hero.swapped { border-color: var(--amber); }
+.sbx-hint { font-size: 12px; color: var(--muted2); text-align: center; }
+.sbx-pick { display: flex; flex-direction: column; gap: 8px; }
+.sbx-pick-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.sbx-pick-head b { color: var(--strong); }
+.search-box.small { height: 34px; width: 220px; }
+.sbx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 2px; }
+.sbx-cand {
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; cursor: pointer; text-align: left;
+  border: 1px solid var(--field-line); border-radius: 3px; background: var(--tint, var(--field)); color: var(--text); font-family: var(--f-text);
+}
+.sbx-cand img { width: 100%; aspect-ratio: 256 / 144; object-fit: cover; display: block; }
+.sbx-cand span { padding: 3px 5px; font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbx-cand:hover { border-color: var(--accent-line); }
+.sbx-cand.on { border-color: var(--amber); }
+.sbx-cand.dim { display: none; }
+@media (max-width: 900px) {
+  .sbx-teams { grid-template-columns: 1fr; }
+}
+
+/* ---------- Текущая ячейка (куда сейчас пикают / банят) — хорошо заметная ---------- */
+.slot.pick.current, .slot.ban.current {
+  border: 2px solid var(--violet); background: rgba(124, 58, 237, .18); overflow: visible;
+  animation: slotGlowPick 1.3s ease-in-out infinite;
+}
+.slot.ban.current { border-color: var(--dire); background: rgba(229, 72, 77, .16); animation-name: slotGlowBan; }
+@keyframes slotGlowPick {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(167, 139, 250, .35), 0 0 22px rgba(167, 139, 250, .55); }
+  50% { box-shadow: 0 0 0 4px rgba(167, 139, 250, .12), 0 0 6px rgba(167, 139, 250, .2); }
+}
+@keyframes slotGlowBan {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(229, 72, 77, .4), 0 0 22px rgba(229, 72, 77, .6); }
+  50% { box-shadow: 0 0 0 4px rgba(229, 72, 77, .12), 0 0 6px rgba(229, 72, 77, .2); }
+}
+/* Надпись «БАН» / «ПИК» в текущей ячейке */
+.slot.ban.current::before, .slot.pick.current::before {
+  position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 2px 8px; border-radius: 3px; font: 700 12px var(--f-text); letter-spacing: .12em; color: #fff; pointer-events: none;
+}
+.slot.ban.current::before { content: 'БАН'; background: var(--dire); }
+.slot.pick.current::before { content: 'ПИК'; background: var(--accent); left: auto; right: 8px; transform: translateY(-50%); }
+.slot.pick.current .slot-t { color: var(--strong); }
+/* Выбранный, но ещё не подтверждённый герой — ярче, чем раньше */
+.slot.current .ghost-tile { opacity: .85; }
+.slot.ban.current .ghost-tile img { filter: grayscale(.4) brightness(.75); }
+.slot.ban.current:has(.ghost-tile)::before { top: 8px; transform: translateX(-50%); font-size: 10px; padding: 1px 6px; }
+
+/* ---------- Уведомление капитану «Ваш пик / Ваш бан» ---------- */
+.turn-toast {
+  position: fixed; top: 14px; left: 50%; z-index: 60; min-width: 260px; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 28px 13px; text-align: center;
+  border-radius: 4px; border: 1px solid var(--accent-line); background: rgba(42, 27, 82, .96); color: #fff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 32px rgba(124, 58, 237, .45);
+  pointer-events: none; /* клики проходят к тому, что под плашкой */
+  transform: translate(-50%, calc(-100% - 30px)); opacity: 0;
+  transition: transform .35s cubic-bezier(.2, .8, .3, 1), opacity .25s;
+}
+.turn-toast.show { transform: translate(-50%, 0); opacity: 1; animation: toastPulse 1.6s ease-in-out .4s infinite; }
+/* Наведение: уезжает вверх, оставляя край, по которому видно, что она есть */
+.turn-toast.show.peek { transform: translate(-50%, calc(-100% + 4px)); opacity: .55; animation: none; }
+.turn-toast[data-kind="ban"] { border-color: var(--dire); background: rgba(90, 18, 24, .96); box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 32px rgba(229, 72, 77, .5); }
+.tt-title { font: 700 22px var(--f-display); letter-spacing: .02em; }
+.tt-sub { font-size: 12px; color: rgba(255, 255, 255, .75); }
+@keyframes toastPulse { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(124, 58, 237, .2); } }
+.turn-toast[data-kind="ban"].show { animation-name: toastPulseBan; }
+@keyframes toastPulseBan { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(229, 72, 77, .2); } }
