@@ -18,7 +18,7 @@ const Evaluator = require('./evaluator.js');
 // Модель для режима «Пик-трейнинг» (создаётся командой npm run build:model). Без неё режим недоступен.
 let MODEL = null;
 try { MODEL = require('./draft-model.js'); } catch (e) { /* модель не собрана */ }
-if (MODEL) Engine.setEvaluator((bracket, rad, dire) => Evaluator.evaluate(MODEL, bracket, rad, dire));
+if (MODEL) Engine.setEvaluator((bracket, rad, dire, positions) => Evaluator.evaluate(MODEL, bracket, rad, dire, positions));
 
 const PORT = +process.env.PORT || 3000;
 const ROOT = __dirname;

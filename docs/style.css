@@ -777,3 +777,6 @@ button { font-family: var(--f-text); }
 @keyframes toastPulse { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(124, 58, 237, .2); } }
 .turn-toast[data-kind="ban"].show { animation-name: toastPulseBan; }
 @keyframes toastPulseBan { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(229, 72, 77, .2); } }
+.sbx-pos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.sbx-pos b { color: var(--strong); }
+.sbx-pos small { margin-left: 6px; font-size: 11px; }

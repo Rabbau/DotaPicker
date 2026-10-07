@@ -737,7 +737,7 @@ function renderResult() {
 /* ---------- Пик-трейнинг: песочница «другой пик» ----------
    Зритель заменяет пикнутых героев и видит, как изменились бы шансы.
    Считается в браузере по той же модели и на результат карты не влияет. */
-let sandbox = null; // { key, swaps: { исходный id: новый id }, sel: исходный id | null }
+let sandbox = null; // { key, swaps: { исходный id: новый id }, pos: { исходный id: позиция }, sel: исходный id | null }
 
 const sandboxKey = () => `${view.id}:${st().maps.length}`;
 
@@ -746,12 +746,18 @@ function realPositions(m) {
   return Object.fromEntries(m.eval.heroes.filter((h) => h.pos).map((h) => [h.id, h.pos]));
 }
 
+// Изменены ли позиции относительно реальной расстановки
+function sandboxPosChanged(m) {
+  const real = realPositions(m);
+  return Object.entries(sandbox.pos).some(([id, p]) => real[id] !== p);
+}
+
 function sandboxEval(m) {
-  if (!sandbox || !MODEL || !Object.keys(sandbox.swaps).length) return null;
+  if (!sandbox || !MODEL || (!Object.keys(sandbox.swaps).length && !sandboxPosChanged(m))) return null;
   const radT = m.sides.A === 'radiant' ? 'A' : 'B';
   const swap = (id) => sandbox.swaps[id] || id;
   const pos = {};
-  for (const [id, p] of Object.entries(realPositions(m))) pos[swap(+id)] = p;
+  for (const [id, p] of Object.entries(sandbox.pos)) pos[swap(+id)] = p;
   return DraftEvaluator.evaluate(MODEL, st().settings.bracket, picksOf(m, radT).map(swap), picksOf(m, E.other(radT)).map(swap), pos);
 }
 
@@ -768,27 +774,33 @@ function sandboxCandidates(m) {
 function renderSandbox(m, radT, real, ev) {
   if (!MODEL) return '';
   if (!sandbox) {
-    return `<div class="sbx-open"><button type="button" class="btn" data-sb="open">Протестировать другой пик</button>
-      <span class="muted">Замените героя и посмотрите, как изменятся шансы — на результат карты не влияет</span></div>`;
+    return `<div class="sbx-open"><button type="button" class="btn" data-sb="open">Протестировать другой пик или позиции</button>
+      <span class="muted">Замените героя или поменяйте позиции и посмотрите, как изменятся шансы — на результат карты не влияет</span></div>`;
   }
-  const pos = realPositions(m);
+  const pos = sandbox.pos;
+  const realPos = realPositions(m);
   const team = (t) => {
     const side = sideOf(t);
     const tiles = picksOf(m, t).map((orig) => {
       const cur = sandbox.swaps[orig] || orig;
       const h = HERO_BY_ID.get(cur);
       const o = HERO_BY_ID.get(orig);
-      const cls = `sbx-hero${sandbox.sel === orig ? ' sel' : ''}${cur !== orig ? ' swapped' : ''}`;
+      const moved = pos[orig] !== realPos[orig];
+      const cls = `sbx-hero${sandbox.sel === orig ? ' sel' : ''}${cur !== orig || moved ? ' swapped' : ''}`;
       return `<button type="button" class="${cls}" data-sb="sel" data-id="${orig}" title="${esc(h.name)}${cur !== orig ? ` (вместо ${esc(o.name)})` : ''}">
         <img src="${heroImg(h)}" alt=""><span class="pos-badge">${pos[orig] || '?'}</span><span class="sbx-name">${esc(h.name)}</span>
-        ${cur !== orig ? `<span class="sbx-was">вместо ${esc(o.name)}</span>` : ''}</button>`;
+        ${cur !== orig ? `<span class="sbx-was">вместо ${esc(o.name)}</span>` : moved ? `<span class="sbx-was">была поз. ${realPos[orig]}</span>` : ''}</button>`;
     }).join('');
     return `<div class="sbx-team ${side === 'radiant' ? 'side-r' : 'side-d'}"><div class="sbx-team-name">${esc(teamName(t))} · ${side === 'radiant' ? 'Radiant' : 'Dire'}</div><div class="sbx-row">${tiles}</div></div>`;
   };
-  let picker = '<div class="sbx-hint">Нажмите на героя, которого хотите заменить.</div>';
+  let picker = '<div class="sbx-hint">Нажмите на героя, чтобы заменить его или поменять ему позицию.</div>';
   if (sandbox.sel != null) {
     const o = HERO_BY_ID.get(sandbox.sel);
+    const curHero = HERO_BY_ID.get(sandbox.swaps[sandbox.sel] || sandbox.sel);
     picker = `<div class="sbx-pick">
+      <div class="sbx-pos"><span>Позиция <b>${esc(curHero.name)}</b>:</span>
+        ${[1, 2, 3, 4, 5].map((p) => `<button type="button" class="pos-chip${pos[sandbox.sel] === p ? ' on' : ''}" data-sb="pos" data-p="${p}" title="${POS_NAMES[p - 1]}">${p}</button>`).join('')}
+        <small class="muted">если позиция занята — герои поменяются местами</small></div>
       <div class="sbx-pick-head"><span>Замена для <b>${esc(o.name)}</b> · поз. ${pos[sandbox.sel] || '?'}</span>
         <label class="search-box small"><input data-sb="q" placeholder="Поиск героя" autocomplete="off"></label></div>
       <div class="sbx-grid">${sandboxCandidates(m).map((h) => `<button type="button" class="sbx-cand a-${h.attr}${sandbox.swaps[sandbox.sel] === h.id ? ' on' : ''}" data-sb="swap" data-id="${h.id}" data-name="${esc(h.name.toLowerCase())}" title="${esc(h.name)}">
@@ -805,8 +817,8 @@ function renderSandbox(m, radT, real, ev) {
       <span class="side-d"><b>${esc(teamName(E.other(radT)))}</b> ${fmtP(1 - real.pRadiant)} → <b>${fmtP(1 - ev.pRadiant)}</b></span></div>`;
   }
   return `<div class="sandbox">
-    <div class="sbx-head"><div><b>Песочница · другой пик</b><span class="muted">Шансы пересчитываются по той же модели. На результат карты не влияет.</span></div>
-      <div class="sbx-actions"><button type="button" class="btn small" data-sb="reset"${Object.keys(sandbox.swaps).length ? '' : ' disabled'}>Сбросить замены</button>
+    <div class="sbx-head"><div><b>Песочница · другой пик и позиции</b><span class="muted">Шансы пересчитываются по той же модели. На результат карты не влияет.</span></div>
+      <div class="sbx-actions"><button type="button" class="btn small" data-sb="reset"${Object.keys(sandbox.swaps).length || sandboxPosChanged(m) ? '' : ' disabled'}>Сбросить изменения</button>
       <button type="button" class="btn small" data-sb="close">Закрыть</button></div></div>
     ${delta}
     <div class="sbx-teams">${team(radT)}${team(E.other(radT))}</div>
@@ -819,9 +831,19 @@ function onSandboxClick(e) {
   if (!t || t.tagName === 'INPUT') return;
   const id = +t.dataset.id;
   switch (t.dataset.sb) {
-    case 'open': sandbox = { key: sandboxKey(), swaps: {}, sel: null }; break;
+    case 'open': sandbox = { key: sandboxKey(), swaps: {}, pos: realPositions(map()), sel: null }; break;
     case 'close': sandbox = null; break;
-    case 'reset': sandbox.swaps = {}; sandbox.sel = null; break;
+    case 'reset': sandbox.swaps = {}; sandbox.pos = realPositions(map()); sandbox.sel = null; break;
+    case 'pos': {
+      // Новая позиция выбранному герою; тиммейт, стоявший на ней, получает его старую позицию
+      const p = +t.dataset.p;
+      const m = map();
+      const team = picksOf(m, 'A').includes(sandbox.sel) ? 'A' : 'B';
+      const mate = picksOf(m, team).find((x) => x !== sandbox.sel && sandbox.pos[x] === p);
+      if (mate != null) sandbox.pos[mate] = sandbox.pos[sandbox.sel];
+      sandbox.pos[sandbox.sel] = p;
+      break;
+    }
     case 'sel': sandbox.sel = sandbox.sel === id ? null : id; break;
     case 'swap':
       if (id === sandbox.sel) delete sandbox.swaps[sandbox.sel];
