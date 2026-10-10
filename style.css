@@ -760,8 +760,8 @@ button { font-family: var(--f-text); }
 
 /* ---------- Уведомление капитану «Ваш пик / Ваш бан» ---------- */
 .turn-toast {
-  position: fixed; top: 14px; left: 50%; z-index: 60; min-width: 260px; max-width: calc(100vw - 32px);
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 28px 13px; text-align: center;
+  position: fixed; top: 14px; left: 50%; z-index: 60; min-width: 620px; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 64px 30px; text-align: center;
   border-radius: 4px; border: 1px solid var(--accent-line); background: rgba(42, 27, 82, .96); color: #fff;
   box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 32px rgba(124, 58, 237, .45);
   pointer-events: none; /* клики проходят к тому, что под плашкой */
@@ -772,11 +772,12 @@ button { font-family: var(--f-text); }
 /* Наведение: уезжает вверх, оставляя край, по которому видно, что она есть */
 .turn-toast.show.peek { transform: translate(-50%, calc(-100% + 4px)); opacity: .55; animation: none; }
 .turn-toast[data-kind="ban"] { border-color: var(--dire); background: rgba(90, 18, 24, .96); box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 32px rgba(229, 72, 77, .5); }
-.tt-title { font: 700 22px var(--f-display); letter-spacing: .02em; }
-.tt-sub { font-size: 12px; color: rgba(255, 255, 255, .75); }
+.tt-title { font: 800 56px/1.05 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.tt-sub { font-size: 18px; color: rgba(255, 255, 255, .8); }
 @keyframes toastPulse { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(124, 58, 237, .2); } }
 .turn-toast[data-kind="ban"].show { animation-name: toastPulseBan; }
 @keyframes toastPulseBan { 50% { box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 12px rgba(229, 72, 77, .2); } }
 .sbx-pos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
 .sbx-pos b { color: var(--strong); }
 .sbx-pos small { margin-left: 6px; font-size: 11px; }
+@media (max-width: 700px) { .turn-toast { min-width: 0; width: calc(100vw - 32px); padding: 18px 20px; } .tt-title { font-size: 34px; } .tt-sub { font-size: 14px; } }
