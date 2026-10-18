@@ -781,3 +781,49 @@ button { font-family: var(--f-text); }
 .sbx-pos b { color: var(--strong); }
 .sbx-pos small { margin-left: 6px; font-size: 11px; }
 @media (max-width: 700px) { .turn-toast { min-width: 0; width: calc(100vw - 32px); padding: 12px 16px; } .tt-title { font-size: 22px; } .tt-sub { font-size: 12px; } }
+
+/* ---------- Пик-тест ---------- */
+.test-entry { text-decoration: none; color: var(--text); border-color: var(--hi-line); transition: border-color .15s; }
+.test-entry:hover { border-color: var(--accent-line); color: var(--text); }
+.test-entry .hint { margin: 0; }
+.pt-title { font: 600 21px var(--f-display); color: var(--strong); }
+.pt-bracket { height: 40px; min-width: 260px; }
+.pt-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.pt-team { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--side); border-radius: 4px; padding: 14px; min-width: 0; }
+.pt-team-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.pt-team-head b { font-size: 20px; font-weight: 600; color: var(--side); }
+.pt-team-head span { font-size: 12px; color: var(--muted2); }
+.pt-slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.pt-slot {
+  position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0;
+  border: 1px solid var(--field-line); border-radius: 3px; background: var(--field); color: var(--text); font-family: var(--f-text);
+}
+.pt-slot.empty {
+  align-items: center; justify-content: center; gap: 4px; min-height: 150px; cursor: pointer;
+  border-style: dashed; border-color: var(--dash); color: var(--dim); font-size: 12px;
+}
+.pt-slot.empty .slot-n { font: 600 18px var(--f-latin); }
+.pt-slot.empty:hover { border-color: var(--accent-line); color: var(--soft); }
+.pt-slot.target { border: 2px solid var(--violet); border-style: solid; color: var(--strong); box-shadow: 0 0 18px rgba(167, 139, 250, .35); }
+.pt-slot.filled { padding-bottom: 8px; }
+.pt-hero { display: flex; flex-direction: column; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+.pt-hero img { width: 100%; aspect-ratio: 256 / 144; object-fit: cover; display: block; }
+.pt-name { padding: 6px 8px 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-pos { display: flex; gap: 3px; padding: 0 8px; }
+.pt-pos .pos-chip { flex: 1; width: auto; height: 26px; font-size: 12px; }
+.pt-slot small { padding: 0 8px; font-size: 10px; }
+.pt-slot small.warn { color: #F1C48A; margin: 0; }
+.pt-remove {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 3px; border: 0; cursor: pointer;
+  background: rgba(8, 5, 16, .8); color: var(--soft); font-size: 15px; line-height: 1;
+}
+.pt-remove:hover { background: var(--dire); color: #fff; }
+.pt-partial { text-align: center; font-size: 13px; color: var(--muted); }
+@media (max-width: 1100px) {
+  .pt-teams { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pt-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pt-bracket { min-width: 0; flex: 1 1 100%; }
+}
+a.btn { text-decoration: none; }

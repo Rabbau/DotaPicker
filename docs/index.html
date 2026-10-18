@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 
@@ -153,6 +153,11 @@
           <button type="button" id="startBtn" class="btn cta">Создать лобби</button>
           <div class="sum-note" id="startNote"></div>
         </div>
+
+        <a class="card card-tight test-entry hidden" id="testEntry" href="?test=1">
+          <div class="field-row"><h2 class="card-title">Пик-тест</h2><span class="field-note">без драфта и лобби</span></div>
+          <p class="hint">Соберите две пятёрки из всех героев, расставьте позиции — и сразу увидите шансы и разбор.</p>
+        </a>
 
         <div class="card card-tight hidden" id="recent">
           <div class="field-row">
@@ -320,6 +325,40 @@
     </div>
   </div>
 
+  <!-- ==================== Пик-тест: две пятёрки из всех героев + оценка ==================== -->
+  <div id="pickTest" class="screen hidden">
+    <header class="topbar">
+      <div class="topbar-in draft-top">
+        <div class="dt-left">
+          <div class="eyebrow">TORNEUM · DOTA 2</div>
+          <div class="dt-title"><span class="pt-title">Пик-тест</span><span class="tag">без драфта</span></div>
+        </div>
+        <div class="dt-actions">
+          <div class="input-box select-box small pt-bracket"><select id="ptBracket" aria-label="Ранг для оценки"></select></div>
+          <button type="button" class="btn" id="ptSwap" title="Поменять команды местами">⇄ Поменять стороны</button>
+          <button type="button" class="btn" id="ptClear">Очистить</button>
+          <a class="btn" href="./">Новое лобби</a>
+        </div>
+      </div>
+    </header>
+    <div class="draft-main">
+      <section class="pt-teams" id="ptTeams"></section>
+      <section class="eval hidden" id="ptEval"></section>
+      <section class="card pool-card">
+        <div class="pool-head">
+          <div class="pool-title"><h2>Все герои</h2><span id="ptHint"></span></div>
+          <label class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+            <input id="ptSearch" placeholder="Поиск героя" autocomplete="off" aria-label="Поиск героя">
+          </label>
+        </div>
+        <div class="attr-chips" id="ptChips"></div>
+        <div class="pool" id="ptPool"></div>
+      </section>
+      <div class="motto">SIC PARVIS MAGNA</div>
+    </div>
+  </div>
+
   <div class="toast hidden" id="toast"></div>
 
   <!-- Уведомление капитану «Ваш пик / Ваш бан» (режим «Капитаны по ссылкам») -->
@@ -328,10 +367,10 @@
     <div class="tt-sub" id="turnToastSub"></div>
   </div>
 
-  <script src="heroes.js?v=21"></script>
-  <script src="draft-model.js?v=21"></script>
-  <script src="evaluator.js?v=21"></script>
-  <script src="engine.js?v=21"></script>
-  <script src="app.js?v=21"></script>
+  <script src="heroes.js?v=23"></script>
+  <script src="draft-model.js?v=23"></script>
+  <script src="evaluator.js?v=23"></script>
+  <script src="engine.js?v=23"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>
