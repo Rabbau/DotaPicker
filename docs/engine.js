@@ -264,6 +264,7 @@
   function clearEvaluation(st, m) {
     if (m.winner) revertWinner(st, m);
     m.eval = null;
+    m.ready = null;
     m.phase = 'positions';
     m.positions = { A: null, B: null };
   }
@@ -382,6 +383,18 @@
         startMap(st, rnd);
         return;
       }
+      case 'ready': {
+        // Пик-трейнинг: капитан жмёт «Продолжить»; когда готовы оба — сразу следующая карта
+        if (role !== 'A' && role !== 'B') fail('«Продолжить» нажимают капитаны');
+        if (m.phase !== 'evaluated') fail('Карта ещё не завершена');
+        m.ready = m.ready || { A: false, B: false };
+        m.ready[role] = action.value !== false;
+        if (m.ready.A && m.ready.B) {
+          m.phase = 'result';
+          startMap(st, rnd);
+        }
+        return;
+      }
       case 'restart': {
         // Новая серия с теми же настройками в том же лобби — ссылки капитанов и зрителей продолжают работать
         if (!isAdmin) fail('Начать заново может только админ');
@@ -409,7 +422,7 @@
       const prev = curMap(st);
       st.clock = null;
       // Авто-победа пик-трейнинга: сначала возвращаемся к экрану оценки, победа пока остаётся
-      if (prev.autoWin) { prev.phase = 'evaluated'; return; }
+      if (prev.autoWin) { prev.phase = 'evaluated'; prev.ready = null; return; }
       revertWinner(st, prev);
       prev.phase = 'done';
       return;

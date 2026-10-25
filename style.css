@@ -827,3 +827,6 @@ button { font-family: var(--f-text); }
   .pt-bracket { min-width: 0; flex: 1 1 100%; }
 }
 a.btn { text-decoration: none; }
+.ready-status { flex-basis: 100%; display: flex; justify-content: center; gap: 10px; margin-bottom: 4px; }
+.ready-status .rd { padding: 4px 12px; border-radius: 3px; border: 1px solid var(--field-line); color: var(--muted2); font-size: 13px; }
+.ready-status .rd.on { border-color: var(--good); color: var(--good); background: rgba(79, 209, 165, .1); }

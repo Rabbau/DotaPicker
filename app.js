@@ -248,7 +248,8 @@ function renderTurnToast() {
   let title = '';
   let sub = '';
   let kind = '';
-  if (!view.local && !S.settings.hotseat && (role === 'A' || role === 'B') && !S.over && !coinFlying(m)) {
+  const flyingNow = coinFlying(m) && ['choice1', 'choice2'].includes(m.phase); // пока монета в воздухе, выбор ещё не начался
+  if (!view.local && !S.settings.hotseat && (role === 'A' || role === 'B') && !S.over && !flyingNow) {
     const step = E.curStep(S);
     if (step && step.team === role) {
       kind = step.type;
@@ -262,6 +263,10 @@ function renderTurnToast() {
       kind = 'choice';
       title = 'Расставьте позиции';
       sub = 'Распределите героев по позициям 1–5';
+    } else if (m.phase === 'evaluated' && !(m.ready && m.ready[role])) {
+      kind = 'choice';
+      title = 'Карта сыграна';
+      sub = 'Посмотрите разбор и нажмите «Продолжить» внизу';
     }
   }
   const show = !!title;
@@ -711,11 +716,25 @@ function renderResult() {
   if (m.phase === 'evaluated') {
     box.classList.remove('hidden');
     $('resultTitle').innerHTML = `${TROPHY} Победа на карте засчитана: ${esc(teamName(m.winner))}`;
+    // Капитаны жмут «Продолжить»; когда готовы оба — следующая карта начинается сама
+    const ready = m.ready || { A: false, B: false };
+    const captains = !S.settings.hotseat && !view.local;
+    const status = (t) => `<span class="rd ${ready[t] ? 'on' : ''}">${ready[t] ? '✓' : '…'} ${esc(teamName(t))}</span>`;
+    if (captains) btns.appendChild(el('div', 'ready-status', `${status('A')}${status('B')}`));
+    if (captains && (view.role === 'A' || view.role === 'B')) {
+      const mine = ready[view.role];
+      const b = el('button', `btn ${mine ? '' : 'cta-sm'}`, mine ? 'Отменить готовность' : 'Продолжить →');
+      b.addEventListener('click', () => act({ type: 'ready', value: !mine }));
+      btns.appendChild(b);
+      if (mine) btns.appendChild(el('div', 'muted', `Ждём ${esc(teamName(E.other(view.role)))}…`));
+    }
     if (view.role === 'admin') {
-      const n = el('button', 'btn cta-sm', 'Следующая карта →');
+      const n = el('button', `btn ${captains ? '' : 'cta-sm'}`, captains ? 'Запустить сразу →' : 'Следующая карта →');
+      n.title = captains ? 'Начать следующую карту, не дожидаясь капитанов' : '';
       n.addEventListener('click', () => act({ type: 'next' }));
       btns.appendChild(n);
-    } else btns.appendChild(el('div', 'muted', 'Следующую карту запустит админ.'));
+    }
+    if (view.role === 'spectator') btns.appendChild(el('div', 'muted', 'Следующая карта начнётся, когда оба капитана нажмут «Продолжить».'));
     return;
   }
   const done = m.phase === 'done';
